@@ -210,7 +210,9 @@
     document.getElementById("matchSub").textContent =
       esc(user.name) + " さんと、おたがいに交換を希望しました。";
     document.getElementById("matchLogs").innerHTML =
-      '<img class="match-av" src="' + photoUrl("you-logswap", 160, 160) + '" width="160" height="160" alt="あなた" />' +
+      '<span class="match-av match-you" role="img" aria-label="あなた">' +
+        '<svg viewBox="0 0 24 24" width="34" height="34" class="ico-line"><circle cx="12" cy="8" r="4"/><path d="M5 20c0-3.5 3.1-6 7-6s7 2.5 7 6"/></svg>' +
+      "</span>" +
       '<span class="match-swap" aria-hidden="true">' +
         '<svg viewBox="0 0 24 24" width="22" height="22" class="ico-line"><path d="M7 7h9l-2.5-2.5M17 17H8l2.5 2.5"/></svg>' +
       "</span>" +

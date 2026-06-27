@@ -56,8 +56,8 @@
         <p class="eyebrow">セットログ交換アプリ</p>
         <h1 class="hero-title">その日のログを、<br><span class="accent">交換しよう。</span></h1>
         <p class="hero-sub">
-          気になる人の「きょうのセットログ」に交換したいを送るだけ。<br>
-          おたがいOKなら、その日のミニVlogを見せ合えます。
+          気になる人の「きょうのセットログ」に、交換リクエストを送るだけ。<br>
+          おたがいがOKしたら、その日のミニVlogを見せ合えます。
         </p>
         <div class="hero-actions">
           <a class="btn-primary" href="#demo">スワイプを試す</a>
@@ -171,12 +171,21 @@
           </a>
         </div>
         <figure class="about-media reveal">
-          <img
-            src="https://picsum.photos/seed/logswap-daily-moment/720/900.webp"
-            srcset="https://picsum.photos/seed/logswap-daily-moment/720/900.webp 720w, https://picsum.photos/seed/logswap-daily-moment/480/600.webp 480w"
-            sizes="(max-width: 720px) 80vw, 360px"
-            width="720" height="900" loading="lazy" decoding="async"
-            alt="窓辺で過ごす、何気ない日常のひとこま" />
+          <div class="about-photo">
+            <img
+              src="https://picsum.photos/seed/logswap-daily-moment/720/900.webp"
+              srcset="https://picsum.photos/seed/logswap-daily-moment/720/900.webp 720w, https://picsum.photos/seed/logswap-daily-moment/480/600.webp 480w"
+              sizes="(max-width: 720px) 80vw, 360px"
+              width="720" height="900" loading="lazy" decoding="async"
+              alt="窓辺で過ごす、何気ない日常のひとこま" />
+            <!-- プロダクト固有のオーバーレイ：1日のログ断片 -->
+            <div class="about-tl" aria-hidden="true">
+              <span class="about-tl-cap">きょうのログ</span>
+              <span class="about-tl-item"><b>08:00</b>カフェでラテ</span>
+              <span class="about-tl-item"><b>15:00</b>レコ屋でディグ</span>
+              <span class="about-tl-item"><b>21:00</b>湯船であったまる</span>
+            </div>
+          </div>
           <figcaption>1時間ごとの2秒が、1日のミニVlogになる。</figcaption>
         </figure>
       </div>
