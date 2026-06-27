@@ -1,30 +1,42 @@
 /**
- * LogSwap — セットログ交換デモ
+ * LogSwap｜セットログ交換デモ
  *
- * Tinder風のカードスタックを実装し、相互に◯（交換希望）が出たら
- * 「ログ交換 成立」とするデモ。バックエンドはなく、擬似マッチング。
+ * ヒーロー内の実機フレームで動く、Tinder風スワイプデモ。
+ * 相互に「交換したい」が出たらログ交換が成立する擬似マッチング。
+ * バックエンドはなく、すべてブラウザ内で完結します。
  *
  * これは「セットログ（日常ログ）を交換するためのツール」であり、
- * 異性紹介・出会い目的の要素（性別・年齢でのフィルタ等）は意図的に持たせていません。
+ * 性別・年齢でのフィルタなど、出会いを目的とした要素は持たせていません。
  */
 (function () {
   "use strict";
 
-  var SWIPE_THRESHOLD = 110; // px。これを超えてリリースすると確定。
+  var SWIPE_THRESHOLD = 96; // px。これを超えてリリースすると確定。
+  var reduceMotion = window.matchMedia &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
   var users = [];
   var index = 0;
   var matches = [];
+  var coachShown = false;
 
   var deckEl = document.getElementById("deck");
   var emptyEl = document.getElementById("empty");
   var controlsEl = document.getElementById("controls");
   var matchCountEl = document.getElementById("matchCount");
+  var coachEl = document.getElementById("coach");
+
+  // 画像URL（picsum を webp で。リポジトリを軽く保つため外部参照）
+  function photoUrl(seed, w, h) {
+    return "https://picsum.photos/seed/" + encodeURIComponent(seed) + "/" + w + "/" + h + ".webp";
+  }
 
   // ---------- 初期化 ----------
   function init() {
     users = (window.MOCK_USERS || []).slice();
     index = 0;
     matches = [];
+    coachShown = false;
     updateMatchBadge();
     render();
     bindControls();
@@ -36,57 +48,61 @@
     var remaining = users.length - index;
     if (remaining <= 0) {
       emptyEl.hidden = false;
+      controlsEl.setAttribute("aria-hidden", "true");
       controlsEl.style.visibility = "hidden";
+      hideCoach();
       return;
     }
     emptyEl.hidden = true;
+    controlsEl.removeAttribute("aria-hidden");
     controlsEl.style.visibility = "visible";
 
-    // 後ろのカードから先に追加（DOM順 = 重なり順）
     var upper = Math.min(index + 2, users.length);
     for (var i = upper - 1; i >= index; i--) {
       var isTop = i === index;
       var card = buildCard(users[i], isTop);
-      // 背面カードは少し小さく・下げる
-      if (!isTop) {
-        card.style.transform = "scale(0.95) translateY(14px)";
-        card.style.filter = "brightness(0.97)";
-      }
+      if (!isTop) card.classList.add("is-back");
       deckEl.appendChild(card);
       if (isTop) enableDrag(card, users[i]);
     }
+
+    if (!coachShown) showCoach();
   }
 
   function buildCard(user, isTop) {
-    var card = document.createElement("div");
+    var card = document.createElement("article");
     card.className = "card";
     card.dataset.id = user.id;
-
-    var grad = "linear-gradient(160deg," + user.color[0] + "," + user.color[1] + ")";
 
     var tags = user.tags.map(function (t) {
       return '<span class="tag">#' + esc(t) + "</span>";
     }).join("");
 
-    var strip = user.log.map(function (l) {
-      return '<div class="log-chip"><div class="clip">' + l.clip +
-        '</div><div class="time">' + esc(l.t) + "</div></div>";
+    var thumbs = user.log.map(function (l) {
+      return '<div class="thumb">' +
+        '<img src="' + photoUrl(l.seed, 120, 120) + '" width="120" height="120" ' +
+        'loading="lazy" decoding="async" alt="' + esc(l.note) + '" />' +
+        '<span class="thumb-t">' + esc(l.t) + "</span></div>";
     }).join("");
 
     card.innerHTML =
-      '<div class="card-top" style="background:' + grad + '">' +
-        '<span class="stamp stamp-yes">交換</span>' +
+      '<div class="card-media">' +
+        '<img class="card-photo" src="' + photoUrl(user.photo, 700, 900) + '" ' +
+          'width="700" height="900" decoding="async" ' +
+          (isTop ? "" : 'loading="lazy" ') + 'alt="' + esc(user.name) + ' さんのきょうのログ" />' +
+        '<div class="card-scrim"></div>' +
+        '<span class="stamp stamp-yes">交換したい</span>' +
         '<span class="stamp stamp-no">見送り</span>' +
-        '<span class="card-avatar">' + user.emoji + "</span>" +
+        '<div class="card-head">' +
+          "<h3>" + esc(user.name) + ' <span class="handle">' + esc(user.handle) + "</span></h3>" +
+          '<p class="card-vibe">' + esc(user.vibe) + "</p>" +
+        "</div>" +
       "</div>" +
-      '<div class="card-body">' +
-        '<div class="card-name"><h2>' + esc(user.name) + "</h2>" +
-          '<span class="handle">' + esc(user.handle) + "</span></div>" +
-        '<div class="card-vibe">' + esc(user.vibe) + "</div>" +
+      '<div class="card-foot">' +
         '<p class="card-bio">' + esc(user.bio) + "</p>" +
         '<div class="card-tags">' + tags + "</div>" +
-        '<div class="log-label">きょうのセットログ</div>' +
-        '<div class="log-strip">' + strip + "</div>" +
+        '<div class="log-cap">きょうのセットログ</div>' +
+        '<div class="thumbs">' + thumbs + "</div>" +
       "</div>";
 
     return card;
@@ -99,24 +115,24 @@
     var noStamp = card.querySelector(".stamp-no");
 
     function onDown(e) {
+      if (e.target.closest(".thumbs")) return; // サムネのスクロールは妨げない
       dragging = true;
       card.classList.add("dragging");
-      startX = pointX(e);
-      startY = pointY(e);
-      card.setPointerCapture && e.pointerId != null && card.setPointerCapture(e.pointerId);
+      hideCoach();
+      startX = e.clientX; startY = e.clientY;
+      if (e.pointerId != null && card.setPointerCapture) card.setPointerCapture(e.pointerId);
     }
-
     function onMove(e) {
       if (!dragging) return;
-      dx = pointX(e) - startX;
-      dy = pointY(e) - startY;
-      var rot = dx / 18;
-      card.style.transform = "translate(" + dx + "px," + dy + "px) rotate(" + rot + "deg)";
+      dx = e.clientX - startX; dy = e.clientY - startY;
+      var rot = dx / 22;
+      card.style.transform = "translate(" + dx + "px," + dy * 0.4 + "px) rotate(" + rot + "deg)";
       var ratio = Math.min(Math.abs(dx) / SWIPE_THRESHOLD, 1);
+      card.style.setProperty("--tint", ratio.toFixed(3));
+      card.dataset.dir = dx >= 0 ? "yes" : "no";
       if (dx > 0) { yesStamp.style.opacity = ratio; noStamp.style.opacity = 0; }
       else { noStamp.style.opacity = ratio; yesStamp.style.opacity = 0; }
     }
-
     function onUp() {
       if (!dragging) return;
       dragging = false;
@@ -125,9 +141,10 @@
       else if (dx < -SWIPE_THRESHOLD) commit(card, user, "no");
       else {
         card.style.transform = "";
-        yesStamp.style.opacity = 0;
-        noStamp.style.opacity = 0;
+        card.style.setProperty("--tint", "0");
+        yesStamp.style.opacity = 0; noStamp.style.opacity = 0;
       }
+      dx = 0; dy = 0;
     }
 
     card.addEventListener("pointerdown", onDown);
@@ -140,22 +157,35 @@
   function commit(card, user, choice) {
     var dir = choice === "yes" ? 1 : -1;
     card.classList.add("leaving");
-    card.style.transform = "translate(" + (dir * 600) + "px," + (dir * 60) +
-      "px) rotate(" + (dir * 30) + "deg)";
+    var fly = reduceMotion ? 0 : 1;
+    card.style.transform = "translate(" + (dir * 480 * fly) + "px," + (40 * fly) +
+      "px) rotate(" + (dir * 22 * fly) + "deg)";
     card.style.opacity = "0";
 
     index++;
+    var delay = reduceMotion ? 0 : 300;
     setTimeout(function () {
       render();
       if (choice === "yes" && user.likesBack) registerMatch(user);
-    }, 320);
+    }, delay);
   }
 
-  // ボタン操作（上のカードをプログラム的にスワイプ）
   function swipeTop(choice) {
     if (index >= users.length) return;
     var top = deckEl.querySelector('.card[data-id="' + users[index].id + '"]');
     if (top) commit(top, users[index], choice);
+  }
+
+  // ---------- コーチ（最初のヒント）----------
+  function showCoach() {
+    if (reduceMotion || !coachEl) return;
+    coachEl.hidden = false;
+    coachShown = true;
+    setTimeout(hideCoach, 3200);
+  }
+  function hideCoach() {
+    if (coachEl) coachEl.hidden = true;
+    coachShown = true;
   }
 
   // ---------- マッチ ----------
@@ -178,11 +208,15 @@
   function showMatch(user) {
     var overlay = document.getElementById("matchOverlay");
     document.getElementById("matchSub").textContent =
-      esc(user.name) + " さんとおたがいに交換を希望しました";
+      esc(user.name) + " さんと、おたがいに交換を希望しました。";
     document.getElementById("matchLogs").innerHTML =
-      '<span class="who">🙂</span><span class="arrow">⇄</span><span class="who">' +
-      user.emoji + "</span>";
+      '<img class="match-av" src="' + photoUrl("you-logswap", 160, 160) + '" width="160" height="160" alt="あなた" />' +
+      '<span class="match-swap" aria-hidden="true">' +
+        '<svg viewBox="0 0 24 24" width="22" height="22" class="ico-line"><path d="M7 7h9l-2.5-2.5M17 17H8l2.5 2.5"/></svg>' +
+      "</span>" +
+      '<img class="match-av" src="' + photoUrl(user.photo, 160, 160) + '" width="160" height="160" alt="' + esc(user.name) + '" />';
     overlay.hidden = false;
+    if (!reduceMotion) burstConfetti();
 
     document.getElementById("viewLogBtn").onclick = function () {
       overlay.hidden = true;
@@ -193,19 +227,38 @@
     };
   }
 
+  // 紙吹雪（軽量・CSSアニメ）
+  function burstConfetti() {
+    var box = document.getElementById("confetti");
+    if (!box) return;
+    box.innerHTML = "";
+    var colors = ["#fb4a3e", "#1f1d1a", "#f4b942", "#3aa981", "#ffffff"];
+    for (var i = 0; i < 28; i++) {
+      var p = document.createElement("i");
+      p.className = "cf";
+      p.style.left = (Math.random() * 100) + "%";
+      p.style.background = colors[i % colors.length];
+      p.style.animationDelay = (Math.random() * 0.25) + "s";
+      p.style.animationDuration = (0.9 + Math.random() * 0.7) + "s";
+      p.style.transform = "rotate(" + (Math.random() * 360) + "deg)";
+      box.appendChild(p);
+    }
+    setTimeout(function () { box.innerHTML = ""; }, 1800);
+  }
+
   // ---------- マッチ一覧シート ----------
   function openSheet() {
     var sheet = document.getElementById("matchesSheet");
     var list = document.getElementById("matchesList");
     if (matches.length === 0) {
-      list.innerHTML = '<div class="sheet-empty">まだ交換成立したログはありません。<br>◯でログ交換を申し込みましょう。</div>';
+      list.innerHTML = '<p class="sheet-empty">まだ交換成立したログはありません。<br>「交換したい」を送ってみましょう。</p>';
     } else {
       list.innerHTML = matches.map(function (u) {
-        return '<div class="match-row" data-id="' + u.id + '">' +
-          '<span class="av">' + u.emoji + "</span>" +
-          '<div class="meta"><div class="nm">' + esc(u.name) + "</div>" +
-          '<div class="vb">' + esc(u.vibe) + "</div></div>" +
-          '<span class="go">見る →</span></div>';
+        return '<button class="match-row" type="button" data-id="' + u.id + '">' +
+          '<img class="row-av" src="' + photoUrl(u.photo, 96, 96) + '" width="96" height="96" alt="" />' +
+          '<span class="row-meta"><span class="row-name">' + esc(u.name) + "</span>" +
+          '<span class="row-vibe">' + esc(u.vibe) + "</span></span>" +
+          '<span class="row-go" aria-hidden="true">見る →</span></button>';
       }).join("");
       Array.prototype.forEach.call(list.querySelectorAll(".match-row"), function (row) {
         row.onclick = function () {
@@ -221,13 +274,14 @@
   // ---------- ログビューア ----------
   function openViewer(user) {
     document.getElementById("viewerHead").innerHTML =
-      '<span class="av">' + user.emoji + "</span>" +
-      '<div><div class="nm">' + esc(user.name) + " さんのセットログ</div>" +
-      '<div class="vb">' + esc(user.vibe) + "</div></div>";
+      '<img class="viewer-av" src="' + photoUrl(user.photo, 120, 120) + '" width="120" height="120" alt="" />' +
+      '<div><div class="viewer-name" id="viewerName">' + esc(user.name) + " さんのセットログ</div>" +
+      '<div class="viewer-vibe">' + esc(user.vibe) + "</div></div>";
     document.getElementById("viewerTimeline").innerHTML = user.log.map(function (l) {
-      return '<div class="tl-item"><div class="tl-time">' + esc(l.t) + "</div>" +
-        '<div class="tl-clip">' + l.clip + "</div>" +
-        '<div class="tl-note">' + esc(l.note) + "</div></div>";
+      return '<div class="tl-item">' +
+        '<span class="tl-time">' + esc(l.t) + "</span>" +
+        '<img class="tl-clip" src="' + photoUrl(l.seed, 96, 96) + '" width="96" height="96" loading="lazy" alt="" />' +
+        '<span class="tl-note">' + esc(l.note) + "</span></div>";
     }).join("");
     document.getElementById("logViewer").hidden = false;
   }
@@ -247,16 +301,43 @@
     document.getElementById("closeViewer").onclick = function () {
       document.getElementById("logViewer").hidden = true;
     };
-    // キーボード操作（PC確認用）
+    // オーバーレイの背景クリックで閉じる
+    eachOverlay(function (ov) {
+      ov.addEventListener("click", function (e) {
+        if (e.target === ov) ov.hidden = true;
+      });
+    });
+    // Esc で閉じる
     document.addEventListener("keydown", function (e) {
-      if (e.key === "ArrowRight") swipeTop("yes");
+      if (e.key === "Escape") eachOverlay(function (ov) { ov.hidden = true; });
+      else if (e.key === "ArrowRight") swipeTop("yes");
       else if (e.key === "ArrowLeft") swipeTop("no");
     });
   }
 
+  function eachOverlay(fn) {
+    ["matchOverlay", "matchesSheet", "logViewer"].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) fn(el);
+    });
+  }
+
+  // ---------- スクロール出現（IntersectionObserver）----------
+  function setupReveal() {
+    var els = document.querySelectorAll(".reveal");
+    if (reduceMotion || !("IntersectionObserver" in window)) {
+      Array.prototype.forEach.call(els, function (el) { el.classList.add("in"); });
+      return;
+    }
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (en.isIntersecting) { en.target.classList.add("in"); io.unobserve(en.target); }
+      });
+    }, { threshold: 0.16, rootMargin: "0px 0px -8% 0px" });
+    Array.prototype.forEach.call(els, function (el) { io.observe(el); });
+  }
+
   // ---------- ユーティリティ ----------
-  function pointX(e) { return e.touches ? e.touches[0].clientX : e.clientX; }
-  function pointY(e) { return e.touches ? e.touches[0].clientY : e.clientY; }
   function esc(s) {
     return String(s).replace(/[&<>"']/g, function (c) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
@@ -264,4 +345,5 @@
   }
 
   init();
+  setupReveal();
 })();

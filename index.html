@@ -2,84 +2,237 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <meta name="theme-color" content="#0e0b1f" />
-  <title>LogSwap — セットログ交換</title>
-  <meta name="description" content="セットログ（日常ログ）を交換する相手を見つけるアプリ。スワイプでログを交換しよう。" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#f5f5f3" />
+
+  <title>LogSwap｜セットログを交換しよう</title>
+  <meta name="description" content="気になる人の「きょうのセットログ」に交換したいを送ろう。おたがいOKで、その日のミニVlogを見せ合えるログ交換アプリ。マッチングアプリではありません。" />
+  <link rel="canonical" href="https://tmk4men.github.io/logswap/" />
+
+  <!-- OGP -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="LogSwap" />
+  <meta property="og:locale" content="ja_JP" />
+  <meta property="og:url" content="https://tmk4men.github.io/logswap/" />
+  <meta property="og:title" content="LogSwap｜セットログを交換しよう" />
+  <meta property="og:description" content="気になる人の「きょうのセットログ」に交換したいを送ろう。おたがいOKで、その日のミニVlogを見せ合えるログ交換アプリ。" />
+  <meta property="og:image" content="https://tmk4men.github.io/logswap/assets/og.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="LogSwap セットログを交換しよう" />
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="LogSwap｜セットログを交換しよう" />
+  <meta name="twitter:description" content="気になる人の「きょうのセットログ」に交換したいを送ろう。おたがいOKで、その日のミニVlogを見せ合える。" />
+  <meta name="twitter:image" content="https://tmk4men.github.io/logswap/assets/og.png" />
+
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap" rel="stylesheet" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
-  <div class="app" id="app">
-    <!-- Header -->
-    <header class="topbar">
-      <div class="brand">
-        <span class="brand-mark">⟳</span>
-        <span class="brand-name">LogSwap</span>
+  <!-- ============ Nav ============ -->
+  <header class="nav">
+    <a class="brand" href="#top" aria-label="LogSwap ホーム">
+      <svg class="brand-glyph" viewBox="0 0 24 24" aria-hidden="true" width="22" height="22">
+        <path d="M7 7h9l-2.5-2.5M17 17H8l2.5 2.5" />
+      </svg>
+      <span class="brand-word">LogSwap</span>
+    </a>
+    <nav class="nav-links" aria-label="ページ内ナビ">
+      <a href="#how">使い方</a>
+      <a href="#about">このアプリは？</a>
+      <a class="nav-cta" href="#demo">デモを試す</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <!-- ============ Hero（左：訴求 / 右：実際に動くデモ）============ -->
+    <section class="hero">
+      <div class="hero-copy reveal">
+        <p class="eyebrow">セットログ交換アプリ</p>
+        <h1 class="hero-title">その日のログを、<br><span class="accent">交換しよう。</span></h1>
+        <p class="hero-sub">
+          気になる人の「きょうのセットログ」に交換したいを送るだけ。<br>
+          おたがいOKなら、その日のミニVlogを見せ合えます。
+        </p>
+        <div class="hero-actions">
+          <a class="btn-primary" href="#demo">スワイプを試す</a>
+          <a class="btn-ghost" href="#how">使い方を見る</a>
+        </div>
+        <p class="hero-note">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" class="ico-line"><path d="M12 3l8 4v5c0 4.5-3.2 7.6-8 9-4.8-1.4-8-4.5-8-9V7z"/><path d="M9 12l2 2 4-4"/></svg>
+          マッチングアプリではありません。ログを交換するためだけのアプリです。
+        </p>
       </div>
-      <button class="icon-btn" id="matchesBtn" aria-label="交換成立リスト">
-        <span class="badge" id="matchCount" hidden>0</span>
-        🤝
-      </button>
-    </header>
 
-    <p class="tagline">セットログを交換する相手を見つけよう</p>
+      <!-- 実機フレームの中で本物のデモが動く -->
+      <div class="hero-demo reveal" id="demo">
+        <div class="phone" role="application" aria-label="LogSwap デモ">
+          <div class="phone-bar">
+            <span class="phone-brand">LogSwap</span>
+            <button class="chip-btn" id="matchesBtn" type="button" aria-label="交換成立したログ">
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" class="ico-line"><path d="M7 7h9l-2.5-2.5M17 17H8l2.5 2.5"/></svg>
+              <span class="chip-count" id="matchCount" hidden>0</span>
+            </button>
+          </div>
 
-    <!-- Card deck -->
-    <main class="deck-wrap">
-      <div class="deck" id="deck" aria-live="polite"></div>
+          <div class="stage">
+            <div class="deck" id="deck" aria-live="polite"></div>
 
-      <!-- Empty state -->
-      <div class="empty" id="empty" hidden>
-        <div class="empty-emoji">🎞️</div>
-        <h2>今日のログは一巡しました</h2>
-        <p>また新しいログが届くまでお待ちください。</p>
-        <button class="btn-reset" id="resetBtn">もう一度見る</button>
+            <!-- 最初のカードに出る動くヒント -->
+            <div class="coach" id="coach" hidden>
+              <div class="coach-side coach-l">
+                <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" class="ico-line"><path d="M6 6l12 12M18 6L6 18"/></svg>
+                見送る
+              </div>
+              <div class="coach-side coach-r">
+                <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" class="ico-line"><circle cx="12" cy="12" r="7"/></svg>
+                交換したい
+              </div>
+            </div>
+
+            <div class="empty" id="empty" hidden>
+              <p class="empty-title">今日のログは一巡しました</p>
+              <p class="empty-sub">新しいログが届くまでお待ちください。</p>
+              <button class="btn-primary sm" id="resetBtn" type="button">もう一度見る</button>
+            </div>
+          </div>
+
+          <div class="controls" id="controls">
+            <div class="ctrl-cell">
+              <button class="ctrl ctrl-no" id="noBtn" type="button" aria-label="見送る">
+                <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="ico-line"><path d="M6 6l12 12M18 6L6 18"/></svg>
+              </button>
+              <span class="ctrl-cap">見送る</span>
+            </div>
+            <div class="ctrl-cell">
+              <button class="ctrl ctrl-info" id="infoBtn" type="button" aria-label="ログを詳しく見る">
+                <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" class="ico-line"><path d="M12 16v-5"/><path d="M12 8h.01"/><circle cx="12" cy="12" r="9"/></svg>
+              </button>
+              <span class="ctrl-cap">詳しく</span>
+            </div>
+            <div class="ctrl-cell">
+              <button class="ctrl ctrl-yes" id="yesBtn" type="button" aria-label="交換したい">
+                <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="ico-line"><circle cx="12" cy="12" r="8"/></svg>
+              </button>
+              <span class="ctrl-cap">交換したい</span>
+            </div>
+          </div>
+        </div>
+        <p class="demo-hint">ドラッグでスワイプ／PCは ← → キーでも操作できます</p>
       </div>
-    </main>
+    </section>
 
-    <!-- Swipe controls -->
-    <div class="controls" id="controls">
-      <button class="ctrl ctrl-no" id="noBtn" aria-label="交換しない">✕</button>
-      <button class="ctrl ctrl-info" id="infoBtn" aria-label="ログを詳しく見る">⌄</button>
-      <button class="ctrl ctrl-yes" id="yesBtn" aria-label="ログを交換したい">◯</button>
+    <!-- ============ How it works ============ -->
+    <section class="section" id="how">
+      <header class="section-head reveal">
+        <h2>使い方は、3ステップ</h2>
+        <p>むずかしい設定はありません。見て、選ぶだけ。</p>
+      </header>
+      <ol class="steps">
+        <li class="step reveal">
+          <span class="step-no">1</span>
+          <h3>カードを見る</h3>
+          <p>相手の「きょうのセットログ」が1枚ずつ表示されます。</p>
+        </li>
+        <li class="step reveal">
+          <span class="step-no">2</span>
+          <h3>右で交換、左で見送り</h3>
+          <p>スワイプか、下のボタンで選ぶだけ。迷ったら見送れます。</p>
+        </li>
+        <li class="step reveal">
+          <span class="step-no">3</span>
+          <h3>おたがい交換で成立</h3>
+          <p>ふたりとも交換したいなら、その日のミニVlogを見せ合えます。</p>
+        </li>
+      </ol>
+    </section>
+
+    <!-- ============ About / 安心の位置づけ ============ -->
+    <section class="section about" id="about">
+      <div class="about-grid">
+        <div class="about-copy reveal">
+          <h2>「交換」のための<br>アプリです</h2>
+          <p>
+            LogSwap は、その日の断片的な記録＝セットログを交換するためのツールです。
+            相手を性別や年齢でしぼり込む機能はなく、出会いを目的とした仕組みも持ちません。
+          </p>
+          <p class="about-quiet">
+            見せたいのは、加工していない自分の1日。
+            合う人とだけ、そっとログを見せ合えます。
+          </p>
+          <a class="link-arrow" href="#demo">
+            デモを試す
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" class="ico-line"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </a>
+        </div>
+        <figure class="about-media reveal">
+          <img
+            src="https://picsum.photos/seed/logswap-daily-moment/720/900.webp"
+            srcset="https://picsum.photos/seed/logswap-daily-moment/720/900.webp 720w, https://picsum.photos/seed/logswap-daily-moment/480/600.webp 480w"
+            sizes="(max-width: 720px) 80vw, 360px"
+            width="720" height="900" loading="lazy" decoding="async"
+            alt="窓辺で過ごす、何気ない日常のひとこま" />
+          <figcaption>1時間ごとの2秒が、1日のミニVlogになる。</figcaption>
+        </figure>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============ Footer ============ -->
+  <footer class="footer">
+    <div class="footer-row">
+      <a class="brand" href="#top" aria-label="LogSwap ホーム">
+        <svg class="brand-glyph" viewBox="0 0 24 24" aria-hidden="true" width="20" height="20"><path d="M7 7h9l-2.5-2.5M17 17H8l2.5 2.5"/></svg>
+        <span class="brand-word">LogSwap</span>
+      </a>
+      <a class="footer-gh" href="https://github.com/tmk4men/logswap" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" class="ico-solid"><path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.53 2.36 1.09 2.94.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02a9.5 9.5 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.69-4.57 4.94.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0 0 12 2z"/></svg>
+        GitHub
+      </a>
     </div>
+    <p class="footer-note">デモはモックデータで動作します。マッチングは擬似的なものです。</p>
+    <p class="footer-copy">© 2026 LogSwap</p>
+  </footer>
 
-    <p class="hint">◯ … ログを交換したい　　✕ … 今回は見送る</p>
-  </div>
-
-  <!-- Match overlay -->
+  <!-- ============ Match overlay ============ -->
   <div class="overlay" id="matchOverlay" hidden>
-    <div class="match-card">
-      <div class="match-burst">🎉</div>
-      <h2 class="match-title">ログ交換 成立！</h2>
-      <p class="match-sub" id="matchSub">おたがいに交換を希望しました</p>
+    <div class="confetti" id="confetti" aria-hidden="true"></div>
+    <div class="dialog match-dialog" role="dialog" aria-modal="true" aria-labelledby="matchTitle">
+      <p class="match-kicker">交換成立</p>
+      <h2 class="match-title" id="matchTitle">ログを交換しました</h2>
+      <p class="match-sub" id="matchSub"></p>
       <div class="match-logs" id="matchLogs"></div>
-      <div class="match-actions">
-        <button class="btn-primary" id="viewLogBtn">交換したログを見る</button>
-        <button class="btn-ghost" id="keepSwiping">スワイプを続ける</button>
+      <div class="dialog-actions">
+        <button class="btn-primary" id="viewLogBtn" type="button">交換したログを見る</button>
+        <button class="btn-ghost" id="keepSwiping" type="button">スワイプを続ける</button>
       </div>
     </div>
   </div>
 
-  <!-- Matches list sheet -->
+  <!-- ============ Matches sheet ============ -->
   <div class="overlay sheet-overlay" id="matchesSheet" hidden>
-    <div class="sheet">
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
       <div class="sheet-head">
-        <h2>交換成立したログ</h2>
-        <button class="icon-btn" id="closeSheet" aria-label="閉じる">✕</button>
+        <h2 id="sheetTitle">交換成立したログ</h2>
+        <button class="chip-btn" id="closeSheet" type="button" aria-label="閉じる">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" class="ico-line"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
       </div>
       <div class="sheet-list" id="matchesList"></div>
     </div>
   </div>
 
-  <!-- Log viewer -->
+  <!-- ============ Log viewer ============ -->
   <div class="overlay" id="logViewer" hidden>
-    <div class="viewer">
+    <div class="dialog viewer" role="dialog" aria-modal="true" aria-labelledby="viewerName">
       <div class="viewer-head" id="viewerHead"></div>
       <div class="viewer-timeline" id="viewerTimeline"></div>
-      <button class="btn-primary" id="closeViewer">閉じる</button>
+      <button class="btn-primary" id="closeViewer" type="button">閉じる</button>
     </div>
   </div>
 
