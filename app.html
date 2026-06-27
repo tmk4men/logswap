@@ -56,17 +56,6 @@
       <div class="stage">
         <div class="deck" id="deck" aria-live="polite"></div>
 
-        <div class="coach" id="coach" hidden>
-          <div class="coach-side coach-l">
-            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" class="ico-line"><path d="M6 6l12 12M18 6L6 18"/></svg>
-            見送る
-          </div>
-          <div class="coach-side coach-r">
-            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" class="ico-line"><circle cx="12" cy="12" r="7"/></svg>
-            交換したい
-          </div>
-        </div>
-
         <div class="empty" id="empty" hidden>
           <p class="empty-title">今日のログは一巡しました</p>
           <p class="empty-sub">新しいログが届くまでお待ちください。</p>
@@ -75,28 +64,18 @@
       </div>
     </main>
 
-    <!-- Controls -->
+    <!-- Controls（アイコンのみ。説明は置かない） -->
     <div class="controls app-controls" id="controls">
-      <div class="ctrl-cell">
-        <button class="ctrl ctrl-no" id="noBtn" type="button" aria-label="見送る">
-          <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="ico-line"><path d="M6 6l12 12M18 6L6 18"/></svg>
-        </button>
-        <span class="ctrl-cap dark">見送る</span>
-      </div>
-      <div class="ctrl-cell">
-        <button class="ctrl ctrl-info" id="infoBtn" type="button" aria-label="ログを詳しく見る">
-          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" class="ico-line"><path d="M12 16v-5"/><path d="M12 8h.01"/><circle cx="12" cy="12" r="9"/></svg>
-        </button>
-        <span class="ctrl-cap dark">詳しく</span>
-      </div>
-      <div class="ctrl-cell">
-        <button class="ctrl ctrl-yes" id="yesBtn" type="button" aria-label="交換したい">
-          <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="ico-line"><circle cx="12" cy="12" r="8"/></svg>
-        </button>
-        <span class="ctrl-cap dark">交換したい</span>
-      </div>
+      <button class="ctrl ctrl-no" id="noBtn" type="button" aria-label="見送る">
+        <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true" class="ico-line"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+      <button class="ctrl ctrl-info" id="infoBtn" type="button" aria-label="ログを詳しく見る">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" class="ico-line"><path d="M12 16v-5"/><path d="M12 8h.01"/><circle cx="12" cy="12" r="9"/></svg>
+      </button>
+      <button class="ctrl ctrl-yes" id="yesBtn" type="button" aria-label="交換したい">
+        <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true" class="ico-line"><circle cx="12" cy="12" r="8"/></svg>
+      </button>
     </div>
-    <p class="demo-hint dark">ドラッグでスワイプ／PCは ← → キーでも操作できます</p>
   </div>
 
   <!-- Match overlay -->

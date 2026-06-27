@@ -335,7 +335,7 @@ a { color: inherit; text-decoration: none; }
 .match-logs { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 22px; }
 .match-av { width: 76px; height: 76px; border-radius: 50%; object-fit: cover; border: 3px solid var(--paper-2); box-shadow: var(--shadow-sm); }
 .match-you { display: grid; place-items: center; background: color-mix(in srgb, var(--accent) 14%, var(--paper-2)); color: var(--accent-ink); }
-.match-swap { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--accent); color: #fff; }
+.match-swap { position: relative; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--accent); color: #fff; }
 .dialog-actions { display: flex; flex-direction: column; gap: 10px; }
 
 /* sheet */
@@ -379,15 +379,50 @@ a { color: inherit; text-decoration: none; }
 .tl-note { flex: 1; font-size: 13.5px; color: var(--ink-2); }
 
 /* confetti */
-.confetti { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.confetti { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 1; }
 .cf {
-  position: absolute; top: -8%; width: 8px; height: 12px; border-radius: 2px;
-  animation: fall linear forwards;
+  position: absolute; top: -12%; width: 9px; height: 14px; border-radius: 2px;
+  animation: fall cubic-bezier(0.3, 0.7, 0.5, 1) forwards;
 }
+.cf.round { border-radius: 50%; }
 @keyframes fall {
-  0% { transform: translateY(0) rotate(0); opacity: 1; }
-  100% { transform: translateY(110vh) rotate(540deg); opacity: 0.9; }
+  0% { transform: translate(0, 0) rotate(0); opacity: 1; }
+  100% { transform: translate(var(--dx, 0), 116vh) rotate(var(--r, 600deg)); opacity: 0.95; }
 }
+
+/* match: 派手な成立演出 */
+.match-dialog { position: relative; overflow: hidden; }
+.match-dialog > * { position: relative; z-index: 1; }
+.match-dialog::before {                       /* サンバースト光線 */
+  content: ""; position: absolute; z-index: 0; top: 118px; left: 50%;
+  width: 560px; height: 560px; margin: -280px 0 0 -280px; pointer-events: none;
+  background: repeating-conic-gradient(var(--accent) 0deg 0.7deg, transparent 0.7deg 10deg);
+  opacity: 0.12; animation: rays 14s linear infinite;
+}
+.match-dialog::after {                         /* 中心グロー */
+  content: ""; position: absolute; z-index: 0; top: 118px; left: 50%;
+  width: 260px; height: 260px; transform: translate(-50%, -50%); pointer-events: none;
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 30%, transparent) 0%, transparent 70%);
+  animation: glowPulse 1.6s ease-in-out infinite;
+}
+@keyframes rays { to { transform: rotate(360deg); } }
+@keyframes glowPulse { 0%, 100% { opacity: 0.45; transform: translate(-50%, -50%) scale(0.92); } 50% { opacity: 0.85; transform: translate(-50%, -50%) scale(1.08); } }
+
+.match-kicker { animation: dropIn 0.5s var(--ease) both; }
+.match-title { animation: popIn 0.55s 0.1s var(--ease) both; transform-origin: center; }
+.match-you { animation: flyL 0.6s 0.15s var(--ease) both; }
+.match-logs .match-av { animation: flyR 0.6s 0.15s var(--ease) both; }
+.match-swap { animation: spark 0.5s 0.5s var(--ease) both; }
+.match-swap::after {                            /* スワップ周りのリング */
+  content: ""; position: absolute; inset: -8px; border-radius: 50%;
+  border: 2px solid var(--accent); opacity: 0; animation: ring 0.9s 0.55s ease-out forwards;
+}
+@keyframes dropIn { 0% { opacity: 0; transform: translateY(-10px); } 100% { opacity: 1; transform: none; } }
+@keyframes popIn { 0% { opacity: 0; transform: scale(0.6); } 60% { opacity: 1; transform: scale(1.1); } 100% { transform: scale(1); } }
+@keyframes flyL { 0% { opacity: 0; transform: translateX(-46px) scale(0.6) rotate(-12deg); } 65% { transform: translateX(7px) scale(1.08); } 100% { opacity: 1; transform: none; } }
+@keyframes flyR { 0% { opacity: 0; transform: translateX(46px) scale(0.6) rotate(12deg); } 65% { transform: translateX(-7px) scale(1.08); } 100% { opacity: 1; transform: none; } }
+@keyframes spark { 0% { opacity: 0; transform: scale(0) rotate(-120deg); } 70% { opacity: 1; transform: scale(1.3) rotate(8deg); } 100% { transform: scale(1) rotate(0); } }
+@keyframes ring { 0% { opacity: 0.8; transform: scale(0.6); } 100% { opacity: 0; transform: scale(2.4); } }
 
 /* ---------------- Reveal on scroll ---------------- */
 .reveal { opacity: 0; transform: translateY(22px); transition: opacity 0.7s var(--ease), transform 0.7s var(--ease); }
@@ -446,7 +481,7 @@ a { color: inherit; text-decoration: none; }
 
 .app-stage { flex: 1 1 auto; min-height: 0; display: flex; padding: 16px 16px 0; }
 .app-stage .stage { flex: 1; width: 100%; height: auto; min-height: 0; }
-.app-controls { flex: 0 0 auto; padding: 16px 0 6px; }
+.app-controls { flex: 0 0 auto; align-items: center; gap: 28px; padding: 18px 0 22px; }
 .ctrl-cap.dark { color: var(--ink-2); }
 .demo-hint.dark { color: var(--muted); padding: 4px 16px 12px; }
 

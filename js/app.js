@@ -219,6 +219,8 @@
       '<img class="match-av" src="' + photoUrl(user.photo, 160, 160) + '" width="160" height="160" alt="' + esc(user.name) + '" />';
     overlay.hidden = false;
     if (!reduceMotion) burstConfetti();
+    // 対応端末では軽くバイブ（成立の手応え）
+    if (navigator.vibrate) { try { navigator.vibrate([0, 35, 30, 55]); } catch (e) {} }
 
     document.getElementById("viewLogBtn").onclick = function () {
       overlay.hidden = true;
@@ -229,23 +231,30 @@
     };
   }
 
-  // 紙吹雪（軽量・CSSアニメ）
+  // 紙吹雪（軽量・CSSアニメ）派手版
   function burstConfetti() {
     var box = document.getElementById("confetti");
     if (!box) return;
     box.innerHTML = "";
-    var colors = ["#fb4a3e", "#1f1d1a", "#f4b942", "#3aa981", "#ffffff"];
-    for (var i = 0; i < 28; i++) {
+    var colors = ["#fb4a3e", "#ff7a70", "#f4b942", "#3aa981", "#7aa2ff", "#ffffff", "#1f1d1a"];
+    var frag = document.createDocumentFragment();
+    for (var i = 0; i < 80; i++) {
       var p = document.createElement("i");
-      p.className = "cf";
+      p.className = "cf" + (i % 3 === 0 ? " round" : "");
+      var w = 6 + Math.random() * 7;
       p.style.left = (Math.random() * 100) + "%";
+      p.style.width = w.toFixed(1) + "px";
+      p.style.height = (i % 3 === 0 ? w : w * 1.6).toFixed(1) + "px";
       p.style.background = colors[i % colors.length];
-      p.style.animationDelay = (Math.random() * 0.25) + "s";
-      p.style.animationDuration = (0.9 + Math.random() * 0.7) + "s";
-      p.style.transform = "rotate(" + (Math.random() * 360) + "deg)";
-      box.appendChild(p);
+      p.style.setProperty("--dx", (Math.random() * 220 - 110).toFixed(0) + "px");
+      p.style.setProperty("--r", (Math.random() * 900 - 200).toFixed(0) + "deg");
+      p.style.animationDelay = (Math.random() * 0.35) + "s";
+      p.style.animationDuration = (1.1 + Math.random() * 1.1) + "s";
+      p.style.opacity = (0.85 + Math.random() * 0.15).toFixed(2);
+      frag.appendChild(p);
     }
-    setTimeout(function () { box.innerHTML = ""; }, 1800);
+    box.appendChild(frag);
+    setTimeout(function () { box.innerHTML = ""; }, 2600);
   }
 
   // ---------- マッチ一覧シート ----------
