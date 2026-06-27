@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0e0b1f" />
+  <title>LogSwap — セットログ交換</title>
+  <meta name="description" content="セットログ（日常ログ）を交換する相手を見つけるアプリ。スワイプでログを交換しよう。" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app" id="app">
+    <!-- Header -->
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark">⟳</span>
+        <span class="brand-name">LogSwap</span>
+      </div>
+      <button class="icon-btn" id="matchesBtn" aria-label="交換成立リスト">
+        <span class="badge" id="matchCount" hidden>0</span>
+        🤝
+      </button>
+    </header>
+
+    <p class="tagline">セットログを交換する相手を見つけよう</p>
+
+    <!-- Card deck -->
+    <main class="deck-wrap">
+      <div class="deck" id="deck" aria-live="polite"></div>
+
+      <!-- Empty state -->
+      <div class="empty" id="empty" hidden>
+        <div class="empty-emoji">🎞️</div>
+        <h2>今日のログは一巡しました</h2>
+        <p>また新しいログが届くまでお待ちください。</p>
+        <button class="btn-reset" id="resetBtn">もう一度見る</button>
+      </div>
+    </main>
+
+    <!-- Swipe controls -->
+    <div class="controls" id="controls">
+      <button class="ctrl ctrl-no" id="noBtn" aria-label="交換しない">✕</button>
+      <button class="ctrl ctrl-info" id="infoBtn" aria-label="ログを詳しく見る">⌄</button>
+      <button class="ctrl ctrl-yes" id="yesBtn" aria-label="ログを交換したい">◯</button>
+    </div>
+
+    <p class="hint">◯ … ログを交換したい　　✕ … 今回は見送る</p>
+  </div>
+
+  <!-- Match overlay -->
+  <div class="overlay" id="matchOverlay" hidden>
+    <div class="match-card">
+      <div class="match-burst">🎉</div>
+      <h2 class="match-title">ログ交換 成立！</h2>
+      <p class="match-sub" id="matchSub">おたがいに交換を希望しました</p>
+      <div class="match-logs" id="matchLogs"></div>
+      <div class="match-actions">
+        <button class="btn-primary" id="viewLogBtn">交換したログを見る</button>
+        <button class="btn-ghost" id="keepSwiping">スワイプを続ける</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Matches list sheet -->
+  <div class="overlay sheet-overlay" id="matchesSheet" hidden>
+    <div class="sheet">
+      <div class="sheet-head">
+        <h2>交換成立したログ</h2>
+        <button class="icon-btn" id="closeSheet" aria-label="閉じる">✕</button>
+      </div>
+      <div class="sheet-list" id="matchesList"></div>
+    </div>
+  </div>
+
+  <!-- Log viewer -->
+  <div class="overlay" id="logViewer" hidden>
+    <div class="viewer">
+      <div class="viewer-head" id="viewerHead"></div>
+      <div class="viewer-timeline" id="viewerTimeline"></div>
+      <button class="btn-primary" id="closeViewer">閉じる</button>
+    </div>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
