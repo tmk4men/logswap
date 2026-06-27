@@ -71,7 +71,7 @@
 
   function buildCard(user, isTop) {
     var card = document.createElement("article");
-    card.className = "card";
+    card.className = "card" + (isTop ? " enter" : "");
     card.dataset.id = user.id;
 
     var tags = user.tags.map(function (t) {
