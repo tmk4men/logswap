@@ -26,7 +26,7 @@
 
   <!-- footer chip -->
   <g transform="translate(96,548)">
-    <rect width="430" height="44" rx="22" fill="#1b1a17"/>
-    <text x="26" y="29" font-family="'Zen Kaku Gothic New',sans-serif" font-size="20" font-weight="700" fill="#f5f4f1">マッチングアプリではありません</text>
+    <rect width="392" height="44" rx="22" fill="#1b1a17"/>
+    <text x="26" y="29" font-family="'Zen Kaku Gothic New',sans-serif" font-size="20" font-weight="700" fill="#f5f4f1">気の合う人とログを見せ合うアプリ</text>
   </g>
 </svg>
