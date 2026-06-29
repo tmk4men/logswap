@@ -6,12 +6,12 @@
    ========================================================= */
 
 :root {
-  --paper: #f2effb;         /* かなり薄い紫（ラベンダー）をベースに */
+  --paper: #e9e0f7;         /* 薄い紫（ラベンダー）。やや濃いめ */
   --paper-2: #ffffff;
-  --ink: #1c1a24;           /* 寒色寄りのニアブラック */
-  --ink-2: #48454f;
-  --muted: #7c7989;
-  --line: #e6e2f1;          /* ラベンダー寄りの境界線 */
+  --ink: #1e1a28;           /* 寒色寄りのニアブラック */
+  --ink-2: #4a4658;
+  --muted: #7e7a8e;
+  --line: #ddd2ef;          /* ラベンダー寄りの境界線 */
   --accent: #fb4a3e;        /* coral：ブランド＝「交換したい」 */
   --accent-ink: #c5342a;
   --ok: #2f9e74;            /* 成立サイン用 */
@@ -327,6 +327,18 @@ a { color: inherit; text-decoration: none; }
 .match-swap { position: relative; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--accent); color: #fff; }
 .dialog-actions { display: flex; flex-direction: column; gap: 10px; }
 
+/* 成立時のSetlogアカウント開示 */
+.match-account { display: flex; flex-direction: column; align-items: center; gap: 3px; margin: 0 0 18px; }
+.ma-label { font-size: 12px; font-weight: 700; color: var(--ink-2); }
+.ma-code { font-family: "Baloo 2", sans-serif; font-size: 22px; font-weight: 700; letter-spacing: 0.02em; color: var(--accent-ink); }
+.ma-hint { font-size: 11.5px; color: var(--muted); }
+
+/* 自己紹介ビュー内のつながる情報 */
+.viewer-connect { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.vc-label { width: 100%; font-size: 12px; font-weight: 700; color: var(--ink-2); }
+.vc-code { font-family: "Baloo 2", sans-serif; font-size: 18px; font-weight: 700; color: var(--accent-ink); }
+.vc-hint { width: 100%; font-size: 11.5px; color: var(--muted); }
+
 /* viewer */
 .viewer { max-width: 380px; max-height: 84dvh; overflow-y: auto; }
 .viewer-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
@@ -419,7 +431,7 @@ a { color: inherit; text-decoration: none; }
 .app-page {
   overflow: hidden;
   background:
-    radial-gradient(120% 70% at 50% -10%, #faf8ff 0%, rgba(250, 248, 255, 0) 60%),
+    radial-gradient(120% 70% at 50% -10%, #f1e9ff 0%, rgba(241, 233, 255, 0) 60%),
     radial-gradient(90% 60% at 50% 112%, color-mix(in srgb, var(--accent) 7%, var(--paper)) 0%, var(--paper) 55%);
 }
 .app-shell {

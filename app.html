@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#f2effb" />
+  <meta name="theme-color" content="#e9e0f7" />
   <title>LogSwap｜スワイプ</title>
   <meta name="description" content="ログを交換する相手を探す。スワイプして、おたがいOKでログを見せ合おう。" />
   <meta name="robots" content="index, follow" />
@@ -32,7 +32,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700&family=M+PLUS+Rounded+1c:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=20260629c" />
+  <link rel="stylesheet" href="css/style.css?v=20260629d" />
 </head>
 <body class="app-page">
   <div class="app-shell">
@@ -77,6 +77,15 @@
           <label for="pf-name">名前</label>
           <input class="pf-input" id="pf-name" type="text" maxlength="20" autocomplete="name" placeholder="name" required />
           <p class="pf-err" id="pf-name-err" role="alert" hidden>名前を入力してください。</p>
+        </div>
+
+        <div class="pf-field">
+          <label for="pf-account">Setlogのアカウント</label>
+          <div class="pf-handle-wrap">
+            <span class="pf-at" aria-hidden="true">@</span>
+            <input id="pf-account" type="text" maxlength="30" autocomplete="username" placeholder="setlog_id" />
+          </div>
+          <p class="pf-hint">マッチング成立後に相手へ共有されます（Setlogで友だち追加に使います）。</p>
         </div>
 
         <div class="pf-field">
@@ -171,7 +180,7 @@
 
     <!-- ログ・チャットタブ -->
     <section class="view view-pad" id="view-chat" hidden>
-      <h2 class="view-title">ログ・チャット</h2>
+      <h2 class="view-title">ログ</h2>
       <div class="chat-list" id="chatList"></div>
     </section>
 
@@ -205,12 +214,14 @@
   <div class="overlay" id="matchOverlay" hidden>
     <div class="confetti" id="confetti" aria-hidden="true"></div>
     <div class="dialog match-dialog" role="dialog" aria-modal="true" aria-labelledby="matchTitle">
-      <p class="match-kicker">交換成立</p>
-      <h2 class="match-title" id="matchTitle">ログを交換しました</h2>
+      <p class="match-kicker">マッチング成立</p>
+      <h2 class="match-title" id="matchTitle">Setlogでつながろう</h2>
       <p class="match-sub" id="matchSub"></p>
       <div class="match-logs" id="matchLogs"></div>
+      <div class="match-account" id="matchAccount"></div>
       <div class="dialog-actions">
-        <button class="btn-primary" id="keepSwiping" type="button">スワイプを続ける</button>
+        <button class="btn-primary" id="copyAccountBtn" type="button">Setlogのアカウントをコピー</button>
+        <button class="btn-ghost" id="keepSwiping" type="button">スワイプを続ける</button>
       </div>
     </div>
   </div>
@@ -236,7 +247,7 @@
     </div>
   </div>
 
-  <script src="js/data.js?v=20260629c"></script>
-  <script src="js/app.js?v=20260629c"></script>
+  <script src="js/data.js?v=20260629d"></script>
+  <script src="js/app.js?v=20260629d"></script>
 </body>
 </html>
