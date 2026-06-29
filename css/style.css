@@ -119,12 +119,7 @@ a { color: inherit; text-decoration: none; }
 }
 .hero-title .accent { color: var(--accent); }
 .hero-sub { margin: 0 0 26px; max-width: 30em; font-size: clamp(15px, 1.6vw, 17px); color: var(--ink-2); }
-.hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 22px; }
-.hero-note {
-  display: flex; align-items: center; gap: 8px;
-  margin: 0; font-size: 13.5px; color: var(--muted);
-}
-.hero-note .ico-line { color: var(--ok); flex: 0 0 auto; }
+.hero-actions { display: flex; flex-wrap: wrap; gap: 12px; }
 
 /* ---------------- Phone / demo ---------------- */
 .hero-demo { display: flex; flex-direction: column; align-items: center; gap: 12px; }
@@ -195,8 +190,7 @@ a { color: inherit; text-decoration: none; }
 .card-head { position: absolute; left: 18px; right: 18px; bottom: 15px; color: #fff; z-index: 2; text-shadow: 0 1px 12px rgba(0, 0, 0, 0.28); }
 .card-head h3 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.01em; }
 .card-head .handle { font-family: "Space Grotesk", sans-serif; font-weight: 500; font-size: 13px; opacity: 0.82; }
-.card-vibe { display: inline-flex; align-items: center; gap: 6px; margin: 3px 0 0; font-size: 13.5px; font-weight: 500; opacity: 0.95; }
-.card-vibe::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+.card-vibe { margin: 3px 0 0; font-size: 13.5px; font-weight: 500; opacity: 0.95; }
 
 .card-foot { flex: 0 0 auto; padding: 13px 18px 15px; }
 .card-bio { margin: 0 0 10px; font-size: 13px; line-height: 1.6; color: var(--ink-2); }
@@ -484,7 +478,11 @@ a { color: inherit; text-decoration: none; }
   display: flex; flex-direction: column;
   width: 100%; max-width: 460px; margin: 0 auto;
   height: 100dvh;
+  /* ステータスバー/ノッチ回避（Android15+ のエッジ・トゥ・エッジや iOS ノッチ対応） */
+  padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 .app-bar {
   flex: 0 0 auto;
@@ -517,6 +515,22 @@ a { color: inherit; text-decoration: none; }
     padding: 24px 0 calc(24px + env(safe-area-inset-bottom));
   }
   .app-page .app-stage .stage { height: clamp(480px, 70vh, 580px); flex: 0 0 auto; }
+}
+
+/* 横向き・低い画面：広い画面用レイアウトに入ってもカードがはみ出さないよう詰める */
+@media (orientation: landscape) and (max-height: 600px) {
+  .app-shell {
+    height: 100dvh; min-height: 0;
+    justify-content: flex-start;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .app-bar { height: 50px; }
+  .app-stage { padding: 8px 16px 0; }
+  .app-page .app-stage .stage { height: auto; flex: 1 1 auto; min-height: 0; }
+  .app-controls { gap: 20px; padding: 8px 0 10px; }
+  .app-controls .ctrl-no, .app-controls .ctrl-yes { width: 52px; height: 52px; }
+  .app-controls .ctrl-info { width: 42px; height: 42px; }
 }
 
 /* ---------------- Reduced motion ---------------- */
