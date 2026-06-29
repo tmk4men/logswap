@@ -65,6 +65,22 @@
     reader.readAsDataURL(file);
   }
 
+  // 「相手に表示されるプロフィール」プレビュー（動画を大きく＋左下に画像アイコン）
+  function updatePreview() {
+    var box = document.getElementById("pfPreview");
+    if (!box) return;
+    var media = document.getElementById("pfPvMedia");
+    var icon = document.getElementById("pfPvIcon");
+    if (pendingVideoUrl) {
+      media.innerHTML = '<video src="' + pendingVideoUrl + '" muted loop autoplay playsinline preload="metadata"></video>';
+    } else {
+      media.innerHTML = '<div class="pf-pv-empty">動画を選ぶと<br>ここに大きく表示されます</div>';
+    }
+    if (pendingImage) { icon.src = pendingImage; icon.hidden = false; }
+    else { icon.removeAttribute("src"); icon.hidden = true; }
+    box.hidden = !(pendingVideoUrl || pendingImage);
+  }
+
   // ---------- 初期化 ----------
   function init() {
     users = (window.MOCK_USERS || []).slice();
@@ -362,25 +378,44 @@
 
       if (imgInput) imgInput.addEventListener("change", function () {
         var f = imgInput.files && imgInput.files[0];
-        var prev = document.getElementById("pf-image-preview");
-        if (!f) { pendingImage = null; if (prev) { prev.hidden = true; prev.innerHTML = ""; } return; }
+        if (!f) { pendingImage = null; updatePreview(); return; }
         downscaleImage(f, 512, function (dataUrl) {
           pendingImage = dataUrl || null;
-          if (prev) {
-            if (dataUrl) { prev.hidden = false; prev.innerHTML = '<img src="' + dataUrl + '" alt="プロフィール画像のプレビュー" />'; }
-            else { prev.hidden = true; prev.innerHTML = ""; }
-          }
+          updatePreview();
         });
       });
 
       if (vidInput) vidInput.addEventListener("change", function () {
         var f = vidInput.files && vidInput.files[0];
-        var prev = document.getElementById("pf-video-preview");
+        var verr = document.getElementById("pf-video-err");
+        if (verr) verr.hidden = true;
         if (pendingVideoUrl) { try { URL.revokeObjectURL(pendingVideoUrl); } catch (e) {} pendingVideoUrl = null; }
-        if (!f) { pendingVideoName = ""; if (prev) { prev.hidden = true; prev.innerHTML = ""; } return; }
-        pendingVideoName = f.name;
-        pendingVideoUrl = URL.createObjectURL(f);
-        if (prev) { prev.hidden = false; prev.innerHTML = '<video src="' + pendingVideoUrl + '" controls playsinline preload="metadata"></video>'; }
+        pendingVideoName = "";
+        if (!f) { updatePreview(); return; }
+        // 長さ3秒までを検査（メタデータだけ読む）
+        var probeUrl = URL.createObjectURL(f);
+        var probe = document.createElement("video");
+        probe.preload = "metadata";
+        probe.onloadedmetadata = function () {
+          var d = probe.duration;
+          try { URL.revokeObjectURL(probeUrl); } catch (e) {}
+          if (isFinite(d) && d > 3.3) { // 3秒まで（エンコード誤差を少し許容）
+            if (verr) { verr.textContent = "動画は3秒までです（選んだ動画は約" + d.toFixed(1) + "秒）。"; verr.hidden = false; }
+            vidInput.value = "";
+            updatePreview();
+            return;
+          }
+          pendingVideoName = f.name;
+          pendingVideoUrl = URL.createObjectURL(f);
+          updatePreview();
+        };
+        probe.onerror = function () {
+          try { URL.revokeObjectURL(probeUrl); } catch (e) {}
+          if (verr) { verr.textContent = "この動画を読み込めませんでした。別の動画をお試しください。"; verr.hidden = false; }
+          vidInput.value = "";
+          updatePreview();
+        };
+        probe.src = probeUrl;
       });
 
       pform.addEventListener("submit", function (e) {

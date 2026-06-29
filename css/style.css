@@ -477,7 +477,7 @@ a { color: inherit; text-decoration: none; }
 .profile-setup h2 { margin: 0 0 4px; font-size: 22px; font-weight: 900; letter-spacing: -0.01em; }
 .profile-setup .ps-sub { margin: 0; font-size: 13.5px; color: var(--ink-2); line-height: 1.6; }
 .pf-field { display: flex; flex-direction: column; gap: 6px; }
-.pf-field label { font-size: 13px; font-weight: 700; color: var(--ink); }
+.pf-field label, .pf-field .pf-field-label { font-size: 13px; font-weight: 700; color: var(--ink); }
 .pf-hint { margin: 0; font-size: 12px; color: var(--muted); }
 .pf-err { margin: 0; font-size: 12.5px; font-weight: 600; color: var(--accent-ink); }
 .pf-input, .pf-handle-wrap {
@@ -509,9 +509,23 @@ a { color: inherit; text-decoration: none; }
 }
 .profile-setup .btn-primary { margin-top: 4px; width: 100%; }
 .pf-file { font-family: inherit; font-size: 13px; color: var(--ink-2); }
-.pf-preview { margin-top: 2px; }
-.pf-preview video { width: 100%; max-height: 220px; border-radius: 14px; background: #000; display: block; }
-.pf-preview-img img { width: 120px; height: 120px; object-fit: cover; border-radius: 16px; background: var(--line); display: block; }
+
+/* 相手に表示されるプロフィールのプレビュー（動画を大きく＋左下に画像アイコン） */
+.pf-card-preview {
+  position: relative; width: 200px; max-width: 100%; aspect-ratio: 3 / 4;
+  border-radius: 18px; overflow: hidden; background: var(--ink); box-shadow: var(--shadow-md);
+}
+.pf-pv-media { width: 100%; height: 100%; }
+.pf-pv-media video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pf-pv-empty {
+  width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+  text-align: center; color: #fff; opacity: 0.72; font-size: 12.5px; line-height: 1.5; background: #2a2733;
+}
+.pf-pv-icon {
+  position: absolute; left: 12px; bottom: 12px; width: 56px; height: 56px;
+  border-radius: 14px; object-fit: cover; border: 2px solid #fff;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35); background: var(--line);
+}
 
 @media (min-width: 600px) {
   .app-shell {

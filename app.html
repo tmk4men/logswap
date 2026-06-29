@@ -103,14 +103,21 @@
         <div class="pf-field">
           <label for="pf-image">プロフィール画像（1枚）</label>
           <input class="pf-file" id="pf-image" type="file" accept="image/*" />
-          <div class="pf-preview pf-preview-img" id="pf-image-preview" hidden></div>
         </div>
 
         <div class="pf-field">
-          <label for="pf-video">ログの動画（1つだけ）</label>
+          <label for="pf-video">ログの動画（1つだけ・3秒まで）</label>
           <input class="pf-file" id="pf-video" type="file" accept="video/*" />
-          <div class="pf-preview" id="pf-video-preview" hidden></div>
-          <p class="pf-hint">投稿できる動画は1人につき1つまでです。</p>
+          <p class="pf-err" id="pf-video-err" role="alert" hidden></p>
+          <p class="pf-hint">動画は1人につき1つ、長さは3秒までです。</p>
+        </div>
+
+        <div class="pf-field">
+          <span class="pf-field-label">相手に表示されるプロフィール（プレビュー）</span>
+          <div class="pf-card-preview" id="pfPreview" hidden>
+            <div class="pf-pv-media" id="pfPvMedia"></div>
+            <img class="pf-pv-icon" id="pfPvIcon" alt="プロフィール画像" hidden />
+          </div>
         </div>
 
         <button class="btn-primary" id="pfStart" type="submit">はじめる</button>
