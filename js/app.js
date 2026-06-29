@@ -86,7 +86,6 @@
     }
     if (pendingImage) { icon.src = pendingImage; icon.hidden = false; }
     else { icon.removeAttribute("src"); icon.hidden = true; }
-    box.hidden = !(pendingVideoUrl || pendingImage);
   }
 
   // ---------- 初期化 ----------
@@ -97,24 +96,124 @@
     coachShown = false;
     // app.html では初回（プロフィール未登録）はプロフ入力から入る
     var gate = document.getElementById("profileSetup");
-    if (gate && !getProfile()) { setAppGated(true); }
-    else { render(); }
+    if (gate && !getProfile()) { setAppGated(true); return; }
+    setAppGated(false);
+    render();
+    showView("swipe");
+    renderChat();
+    updateTabIndicators();
   }
 
   // プロフ入力ゲートの表示切替（app.html のみ。要素が無ければ何もしない）
   function setAppGated(gated) {
     var gate = document.getElementById("profileSetup");
     var stage = document.querySelector(".app-stage .stage");
+    var tabbar = document.getElementById("tabbar");
     if (gate) gate.hidden = !gated;
     if (stage) stage.hidden = gated;
     if (gated) {
+      var sw = document.getElementById("view-swipe"); if (sw) sw.hidden = false; // 入力フォームはここに入っている
+      var ch = document.getElementById("view-chat"); if (ch) ch.hidden = true;
+      var pr = document.getElementById("view-profile"); if (pr) pr.hidden = true;
+      if (tabbar) tabbar.hidden = true;
+      controlsEl.hidden = true;
       controlsEl.setAttribute("aria-hidden", "true");
       controlsEl.style.visibility = "hidden";
       setFocus(document.getElementById("pf-name"));
     } else {
+      if (tabbar) tabbar.hidden = false;
+      controlsEl.hidden = false;
       controlsEl.removeAttribute("aria-hidden");
       controlsEl.style.visibility = "visible";
     }
+  }
+
+  // ---------- タブ切替（スワイプ / ログ・チャット / プロフィール）----------
+  function showView(name) {
+    var map = { swipe: "view-swipe", chat: "view-chat", profile: "view-profile" };
+    Object.keys(map).forEach(function (k) {
+      var el = document.getElementById(map[k]);
+      if (el) el.hidden = (k !== name);
+    });
+    if (controlsEl) controlsEl.hidden = (name !== "swipe");
+    Array.prototype.forEach.call(document.querySelectorAll("#tabbar .tab"), function (t) {
+      var on = t.dataset.view === name;
+      t.classList.toggle("is-active", on);
+      t.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    if (name === "chat") renderChat();
+    if (name === "profile") renderProfile();
+  }
+
+  // ---------- チャット（成立した相手を上に並べる）----------
+  function renderChat() {
+    var list = document.getElementById("chatList");
+    if (!list) return;
+    if (!matches.length) {
+      list.innerHTML = '<p class="chat-empty">交換が成立すると、ここにチャットが表示されます。</p>';
+      return;
+    }
+    list.innerHTML = matches.slice().reverse().map(function (u) {
+      return '<button class="chat-row" type="button" data-id="' + u.id + '">' +
+        '<img class="chat-av" src="' + photoUrl(u.photo, 96, 96) + '" alt="" />' +
+        '<span class="chat-meta"><span class="chat-name">' + esc(u.name) + "</span>" +
+        '<span class="chat-last">交換が成立しました。話しかけてみよう</span></span>' +
+        '<span class="chat-go" aria-hidden="true">›</span></button>';
+    }).join("");
+    Array.prototype.forEach.call(list.querySelectorAll(".chat-row"), function (row) {
+      row.onclick = function () {
+        var u = matches.filter(function (m) { return m.id === row.dataset.id; })[0];
+        if (u) openViewer(u);
+      };
+    });
+  }
+  // タブのインジケータ：チャットの赤い点＋「いいねされた人数」の赤い数字
+  function updateTabIndicators() {
+    var dot = document.getElementById("chatDot");
+    if (dot) dot.hidden = matches.length === 0; // 成立したのに未対応の相手がいる印
+    var lb = document.getElementById("likesBadge");
+    if (lb) {
+      var liked = users.filter(function (u) { return u.likesBack; }).length - matches.length;
+      if (liked > 0) { lb.hidden = false; lb.textContent = liked; } // 人数のみ。相手情報は出さない
+      else lb.hidden = true;
+    }
+  }
+
+  // ---------- プロフィールタブ（保存済みの表示＋編集）----------
+  function renderProfile() {
+    var box = document.getElementById("profileSummary");
+    if (!box) return;
+    var p = getProfile() || {};
+    var av = p.image
+      ? '<img class="ps-av" src="' + p.image + '" alt="" />'
+      : '<div class="ps-av ps-av-empty"><svg viewBox="0 0 24 24" width="40" height="40" class="ico-line"><circle cx="12" cy="8" r="4"/><path d="M5 20c0-3.5 3.1-6 7-6s7 2.5 7 6"/></svg></div>';
+    var tags = (p.tags || []).map(function (t) {
+      return '<span class="tag">#' + esc(t) + "</span>";
+    }).join("");
+    box.innerHTML =
+      '<div class="ps-card">' +
+        av +
+        '<div class="ps-name">' + esc(p.name || "未設定") + "</div>" +
+        '<div class="ps-meta">' + (p.pref ? esc(p.pref) : "地域未設定") + "</div>" +
+        (tags ? '<div class="ps-tags">' + tags + "</div>" : "") +
+        '<div class="ps-note">ログの動画：' + (p.videoName ? "設定済み" : "未設定") + "</div>" +
+      "</div>";
+  }
+  function openProfileEdit() {
+    var p = getProfile() || {};
+    var n = document.getElementById("pf-name"); if (n) n.value = p.name || "";
+    var pr = document.getElementById("pf-pref"); if (pr) pr.value = p.pref || "";
+    var g = document.getElementById("pf-gender"); if (g) g.value = p.gender || "";
+    pendingImage = p.image || null;
+    var set = {}; (p.tags || []).forEach(function (t) { set[t] = 1; });
+    Array.prototype.forEach.call(document.querySelectorAll("#pf-tags .pf-chip"), function (c) {
+      var on = !!set[c.dataset.tag];
+      c.classList.toggle("is-on", on);
+      c.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+    setUploadState("pf-image", p.image ? "画像を変更" : "画像を選ぶ", !!p.image);
+    setUploadState("pf-video", p.videoName ? "動画を変更" : "動画を選ぶ", !!p.videoName);
+    setAppGated(true);
   }
 
   // 先頭2枚だけ描画して、スタック感を出す。
@@ -254,7 +353,7 @@
 
   // ---------- オーバーレイ開閉＋フォーカス管理（a11y） ----------
   var lastFocused = null;
-  var OVERLAY_IDS = ["logViewer", "matchOverlay"]; // 手前から順に
+  var OVERLAY_IDS = ["previewOverlay", "logViewer", "matchOverlay"]; // 手前から順に
 
   function focusables(el) {
     return Array.prototype.filter.call(
@@ -289,6 +388,8 @@
     if (matches.some(function (m) { return m.id === user.id; })) return;
     matches.push(user);
     showMatch(user);
+    renderChat();
+    updateTabIndicators();
   }
 
   function showMatch(user) {
@@ -420,6 +521,26 @@
         probe.src = probeUrl;
       });
 
+      // ハッシュタグのトグル選択
+      var tagsBox = document.getElementById("pf-tags");
+      if (tagsBox) tagsBox.addEventListener("click", function (e) {
+        var chip = e.target.closest(".pf-chip");
+        if (!chip) return;
+        var on = chip.classList.toggle("is-on");
+        chip.setAttribute("aria-pressed", on ? "true" : "false");
+      });
+
+      // プレビュー（モーダル）
+      var pvBtn = document.getElementById("previewBtn");
+      if (pvBtn) pvBtn.addEventListener("click", function () {
+        updatePreview();
+        openOverlay(document.getElementById("previewOverlay"));
+      });
+      var pvClose = document.getElementById("closePreview");
+      if (pvClose) pvClose.addEventListener("click", function () {
+        closeOverlay(document.getElementById("previewOverlay"));
+      });
+
       pform.addEventListener("submit", function (e) {
         e.preventDefault();
         var nameEl = document.getElementById("pf-name");
@@ -433,17 +554,34 @@
         }
         if (err) err.hidden = true;
         nameEl.removeAttribute("aria-invalid");
+        var tags = Array.prototype.map.call(
+          document.querySelectorAll("#pf-tags .pf-chip.is-on"),
+          function (c) { return c.dataset.tag; }
+        );
         saveProfile({
           name: name,
           pref: document.getElementById("pf-pref").value,
           gender: document.getElementById("pf-gender").value,
+          tags: tags,
           image: pendingImage || "",
           videoName: pendingVideoName || ""
         });
         setAppGated(false);
         render();
+        showView("swipe");
+        renderChat();
+        updateTabIndicators();
       });
     }
+
+    // 下部タブの切替
+    var tabbar = document.getElementById("tabbar");
+    if (tabbar) tabbar.addEventListener("click", function (e) {
+      var t = e.target.closest(".tab");
+      if (t) showView(t.dataset.view);
+    });
+    var editBtn = document.getElementById("editProfileBtn");
+    if (editBtn) editBtn.addEventListener("click", openProfileEdit);
     document.getElementById("closeViewer").onclick = function () {
       closeOverlay(document.getElementById("logViewer"));
     };
@@ -481,7 +619,7 @@
   }
 
   function eachOverlay(fn) {
-    ["matchOverlay", "logViewer"].forEach(function (id) {
+    ["matchOverlay", "logViewer", "previewOverlay"].forEach(function (id) {
       var el = document.getElementById(id);
       if (el) fn(el);
     });

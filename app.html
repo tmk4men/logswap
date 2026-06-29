@@ -32,7 +32,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700&family=M+PLUS+Rounded+1c:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=20260629b" />
+  <link rel="stylesheet" href="css/style.css?v=20260629c" />
 </head>
 <body class="app-page">
   <div class="app-shell">
@@ -48,8 +48,8 @@
       <span class="app-bar-spacer" aria-hidden="true"></span>
     </header>
 
-    <!-- Card stage -->
-    <main class="app-stage">
+    <!-- Card stage（スワイプタブ） -->
+    <main class="app-stage view" id="view-swipe">
       <div class="stage">
         <div class="deck" id="deck" aria-live="polite"></div>
 
@@ -63,13 +63,19 @@
       <!-- 初回プロフィール入力（保存後はスキップ） -->
       <form class="profile-setup" id="profileSetup" novalidate hidden>
         <div class="ps-head">
-          <h2>プロフィールを作成</h2>
+          <div class="ps-head-row">
+            <h2>プロフィールを作成</h2>
+            <button class="ps-preview-btn" id="previewBtn" type="button">
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" class="ico-line"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+              プレビュー
+            </button>
+          </div>
           <p class="ps-sub">交換相手に表示される情報です。あとから変更できます。</p>
         </div>
 
         <div class="pf-field">
           <label for="pf-name">名前</label>
-          <input class="pf-input" id="pf-name" type="text" maxlength="20" autocomplete="name" required />
+          <input class="pf-input" id="pf-name" type="text" maxlength="20" autocomplete="name" placeholder="name" required />
           <p class="pf-err" id="pf-name-err" role="alert" hidden>名前を入力してください。</p>
         </div>
 
@@ -105,6 +111,28 @@
         </div>
 
         <div class="pf-field">
+          <span class="pf-field-label">ハッシュタグ（複数選べます）</span>
+          <div class="pf-chips" id="pf-tags">
+            <button class="pf-chip" type="button" data-tag="朝活">#朝活</button>
+            <button class="pf-chip" type="button" data-tag="カフェ">#カフェ</button>
+            <button class="pf-chip" type="button" data-tag="音楽">#音楽</button>
+            <button class="pf-chip" type="button" data-tag="映画">#映画</button>
+            <button class="pf-chip" type="button" data-tag="読書">#読書</button>
+            <button class="pf-chip" type="button" data-tag="写真">#写真</button>
+            <button class="pf-chip" type="button" data-tag="散歩">#散歩</button>
+            <button class="pf-chip" type="button" data-tag="筋トレ">#筋トレ</button>
+            <button class="pf-chip" type="button" data-tag="自炊">#自炊</button>
+            <button class="pf-chip" type="button" data-tag="ゲーム">#ゲーム</button>
+            <button class="pf-chip" type="button" data-tag="旅">#旅</button>
+            <button class="pf-chip" type="button" data-tag="お菓子">#お菓子</button>
+            <button class="pf-chip" type="button" data-tag="アニメ">#アニメ</button>
+            <button class="pf-chip" type="button" data-tag="ファッション">#ファッション</button>
+            <button class="pf-chip" type="button" data-tag="アウトドア">#アウトドア</button>
+            <button class="pf-chip" type="button" data-tag="サウナ">#サウナ</button>
+          </div>
+        </div>
+
+        <div class="pf-field">
           <span class="pf-field-label">プロフィール画像（1枚）</span>
           <input class="pf-file-input" id="pf-image" type="file" accept="image/*" aria-label="プロフィール画像を選ぶ" />
           <label class="pf-upload" for="pf-image">
@@ -124,14 +152,6 @@
           <p class="pf-hint">動画は1人につき1つ、長さは3秒までです。</p>
         </div>
 
-        <div class="pf-field">
-          <span class="pf-field-label">相手に表示されるプロフィール（プレビュー）</span>
-          <div class="pf-card-preview" id="pfPreview" hidden>
-            <div class="pf-pv-media" id="pfPvMedia"></div>
-            <img class="pf-pv-icon" id="pfPvIcon" alt="プロフィール画像" hidden />
-          </div>
-        </div>
-
         <button class="btn-primary" id="pfStart" type="submit">はじめる</button>
       </form>
     </main>
@@ -148,6 +168,37 @@
         <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true" class="ico-line"><circle cx="12" cy="12" r="8"/></svg>
       </button>
     </div>
+
+    <!-- ログ・チャットタブ -->
+    <section class="view view-pad" id="view-chat" hidden>
+      <h2 class="view-title">ログ・チャット</h2>
+      <div class="chat-list" id="chatList"></div>
+    </section>
+
+    <!-- プロフィールタブ -->
+    <section class="view view-pad" id="view-profile" hidden>
+      <h2 class="view-title">プロフィール</h2>
+      <div class="profile-summary" id="profileSummary"></div>
+      <button class="btn-ghost" id="editProfileBtn" type="button">編集する</button>
+    </section>
+
+    <!-- 下部タブ -->
+    <nav class="tabbar" id="tabbar" aria-label="メインナビ" hidden>
+      <button class="tab is-active" type="button" data-view="swipe" aria-selected="true">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" class="ico-line"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="M8 8h8M8 12h8"/></svg>
+        <span>スワイプ</span>
+        <span class="tab-badge" id="likesBadge" hidden aria-label="あなたをいいねした人数">0</span>
+      </button>
+      <button class="tab" type="button" data-view="chat" aria-selected="false">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" class="ico-line"><path d="M4 5h16v11H8l-4 4z"/></svg>
+        <span>ログ</span>
+        <span class="tab-dot" id="chatDot" hidden aria-label="未対応のチャットあり"></span>
+      </button>
+      <button class="tab" type="button" data-view="profile" aria-selected="false">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" class="ico-line"><circle cx="12" cy="8" r="4"/><path d="M5 20c0-3.5 3.1-6 7-6s7 2.5 7 6"/></svg>
+        <span>プロフィール</span>
+      </button>
+    </nav>
   </div>
 
   <!-- Match overlay -->
@@ -164,6 +215,18 @@
     </div>
   </div>
 
+  <!-- プロフィールのプレビュー -->
+  <div class="overlay" id="previewOverlay" hidden>
+    <div class="dialog preview-dialog" role="dialog" aria-modal="true" aria-label="プロフィールのプレビュー">
+      <p class="preview-cap">相手に表示されるプロフィール</p>
+      <div class="pf-card-preview" id="pfPreview">
+        <div class="pf-pv-media" id="pfPvMedia"></div>
+        <img class="pf-pv-icon" id="pfPvIcon" alt="プロフィール画像" hidden />
+      </div>
+      <button class="btn-primary" id="closePreview" type="button">閉じる</button>
+    </div>
+  </div>
+
   <!-- Log viewer -->
   <div class="overlay" id="logViewer" hidden>
     <div class="dialog viewer" role="dialog" aria-modal="true" aria-labelledby="viewerName">
@@ -173,7 +236,7 @@
     </div>
   </div>
 
-  <script src="js/data.js?v=20260629b"></script>
-  <script src="js/app.js?v=20260629b"></script>
+  <script src="js/data.js?v=20260629c"></script>
+  <script src="js/app.js?v=20260629c"></script>
 </body>
 </html>

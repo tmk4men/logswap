@@ -455,6 +455,61 @@ a { color: inherit; text-decoration: none; }
 /* 明るい背景ではコーチの白カードを少しだけ濃く */
 .app-page .coach-side { background: rgba(27, 26, 23, 0.78); }
 
+/* ---------------- 下部タブ＋各ビュー ---------------- */
+.view-pad { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 14px 16px 18px; }
+.view-title { margin: 4px 0 14px; font-size: 20px; font-weight: 900; letter-spacing: -0.01em; }
+
+.tabbar {
+  flex: 0 0 auto; display: flex;
+  border-top: 1px solid var(--line);
+  background: color-mix(in srgb, var(--paper) 90%, transparent);
+  backdrop-filter: saturate(140%) blur(8px);
+}
+.tab {
+  flex: 1; position: relative; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 8px 0 6px; border: none; background: none;
+  font-family: inherit; font-size: 11px; font-weight: 700; color: var(--muted);
+  transition: color 0.2s;
+}
+.tab.is-active { color: var(--accent); }
+.tab .ico-line { color: currentColor; }
+.tab-badge {
+  position: absolute; top: 3px; left: calc(50% + 6px);
+  min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px;
+  display: grid; place-items: center;
+  background: #e5342a; color: #fff; font-size: 10px; font-weight: 700;
+}
+.tab-dot {
+  position: absolute; top: 5px; left: calc(50% + 8px);
+  width: 9px; height: 9px; border-radius: 50%; background: #e5342a;
+  box-shadow: 0 0 0 2px var(--paper);
+}
+
+/* チャット（成立した相手） */
+.chat-empty { color: var(--muted); font-size: 14px; text-align: center; padding: 32px 12px; line-height: 1.7; }
+.chat-row {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 10px; border: none; background: transparent; border-radius: 14px;
+  cursor: pointer; text-align: left; font-family: inherit; transition: background 0.15s;
+}
+.chat-row:hover { background: var(--paper-2); }
+.chat-av { width: 52px; height: 52px; border-radius: 50%; object-fit: cover; background: var(--line); flex: 0 0 auto; }
+.chat-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.chat-name { font-weight: 700; font-size: 15px; }
+.chat-last { font-size: 12.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-go { color: var(--muted); font-size: 22px; line-height: 1; flex: 0 0 auto; }
+
+/* プロフィールタブ */
+.ps-card { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; padding: 12px 0 4px; }
+.ps-av { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; background: var(--line); border: 3px solid var(--paper-2); box-shadow: var(--shadow-sm); }
+.ps-av-empty { display: grid; place-items: center; color: var(--muted); }
+.ps-name { font-size: 20px; font-weight: 900; }
+.ps-meta { font-size: 13.5px; color: var(--ink-2); }
+.ps-tags { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 4px; }
+.ps-note { margin-top: 8px; font-size: 12.5px; color: var(--muted); }
+.view-profile .btn-ghost { width: 100%; margin-top: 18px; }
+
 /* ---------------- 初回プロフィール入力 ---------------- */
 .profile-setup {
   flex: 1 1 auto; min-height: 0;
@@ -462,8 +517,37 @@ a { color: inherit; text-decoration: none; }
   width: 100%; padding: 8px 4px 12px; overflow-y: auto;
 }
 .profile-setup .ps-head { margin-bottom: 2px; }
-.profile-setup h2 { margin: 0 0 4px; font-size: 22px; font-weight: 900; letter-spacing: -0.01em; }
-.profile-setup .ps-sub { margin: 0; font-size: 13.5px; color: var(--ink-2); line-height: 1.6; }
+.ps-head-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.ps-head-row h2 { margin: 0; }
+.profile-setup h2 { font-size: 22px; font-weight: 900; letter-spacing: -0.01em; }
+.profile-setup .ps-sub { margin: 6px 0 0; font-size: 13.5px; color: var(--ink-2); line-height: 1.6; }
+.ps-preview-btn {
+  display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto;
+  padding: 8px 14px; border-radius: 999px; cursor: pointer;
+  background: var(--paper-2); border: 1.5px solid var(--line); color: var(--ink);
+  font-family: inherit; font-size: 13px; font-weight: 700;
+  transition: border-color 0.2s, background 0.2s;
+}
+.ps-preview-btn:hover { border-color: var(--ink); }
+.ps-preview-btn .ico-line { color: var(--accent); }
+
+/* ハッシュタグ選択チップ */
+.pf-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.pf-chip {
+  font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer;
+  padding: 7px 13px; border-radius: 999px;
+  background: var(--paper-2); border: 1.5px solid var(--line); color: var(--ink-2);
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
+}
+.pf-chip:hover { border-color: var(--ink-2); }
+.pf-chip.is-on { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* プレビュー（モーダル） */
+.preview-dialog { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.preview-cap { margin: 0; align-self: flex-start; font-size: 13px; font-weight: 700; color: var(--ink-2); }
+.preview-dialog .pf-card-preview { width: 220px; max-width: 100%; }
+.preview-dialog .btn-primary { width: 100%; }
+
 .pf-field { display: flex; flex-direction: column; gap: 6px; }
 .pf-field label, .pf-field .pf-field-label { font-size: 13px; font-weight: 700; color: var(--ink); }
 .pf-hint { margin: 0; font-size: 12px; color: var(--muted); }
