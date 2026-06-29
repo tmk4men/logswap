@@ -65,6 +65,14 @@
     reader.readAsDataURL(file);
   }
 
+  // アップロードボタンの見た目（文言と選択済みスタイル）を更新
+  function setUploadState(forId, text, isSet) {
+    var btn = document.querySelector('label[for="' + forId + '"]');
+    if (btn) btn.classList.toggle("is-set", !!isSet);
+    var lbl = document.getElementById(forId + "-label");
+    if (lbl) lbl.textContent = text;
+  }
+
   // 「相手に表示されるプロフィール」プレビュー（動画を大きく＋左下に画像アイコン）
   function updatePreview() {
     var box = document.getElementById("pfPreview");
@@ -141,35 +149,24 @@
     card.className = "card" + (isTop ? " enter" : "");
     card.dataset.id = user.id;
 
-    var tags = user.tags.map(function (t) {
-      return '<span class="tag">#' + esc(t) + "</span>";
-    }).join("");
-
-    var thumbs = user.log.map(function (l) {
-      return '<div class="thumb">' +
-        '<img src="' + photoUrl(l.seed, 120, 120) + '" width="120" height="120" ' +
-        'loading="lazy" decoding="async" alt="' + esc(l.note) + '" />' +
-        '<span class="thumb-t">' + esc(l.t) + "</span></div>";
-    }).join("");
+    // メインは登録した動画（無ければ画像にフォールバック）
+    var media = user.video
+      ? '<video class="card-video" src="' + esc(user.video) + '" ' +
+          'poster="' + photoUrl(user.photo, 700, 1000) + '" muted loop playsinline ' +
+          'preload="metadata" ' + (isTop ? "autoplay " : "") + '></video>'
+      : '<img class="card-photo" src="' + photoUrl(user.photo, 700, 1000) + '" ' +
+          'decoding="async" alt="' + esc(user.name) + ' さんの動画" />';
 
     card.innerHTML =
       '<div class="card-media">' +
-        '<img class="card-photo" src="' + photoUrl(user.photo, 700, 900) + '" ' +
-          'width="700" height="900" decoding="async" ' +
-          (isTop ? "" : 'loading="lazy" ') + 'alt="' + esc(user.name) + ' さんのきょうのログ" />' +
+        media +
         '<div class="card-scrim"></div>' +
         '<span class="stamp stamp-yes">交換したい</span>' +
         '<span class="stamp stamp-no">見送り</span>' +
-        '<div class="card-head">' +
-          "<h3>" + esc(user.name) + ' <span class="handle">' + esc(user.handle) + "</span></h3>" +
-          '<p class="card-vibe">' + esc(user.vibe) + "</p>" +
+        '<div class="card-id">' +
+          '<img class="card-avatar" src="' + photoUrl(user.photo, 120, 120) + '" alt="" />' +
+          '<h3 class="card-name">' + esc(user.name) + "</h3>" +
         "</div>" +
-      "</div>" +
-      '<div class="card-foot">' +
-        '<p class="card-bio">' + esc(user.bio) + "</p>" +
-        '<div class="card-tags">' + tags + "</div>" +
-        '<div class="log-cap">きょうのログ</div>' +
-        '<div class="thumbs">' + thumbs + "</div>" +
       "</div>";
 
     return card;
@@ -346,18 +343,19 @@
     setTimeout(function () { box.innerHTML = ""; }, 2600);
   }
 
-  // ---------- ログビューア ----------
+  // ---------- 自己紹介（プロフィール詳細）----------
   function openViewer(user) {
     document.getElementById("viewerHead").innerHTML =
       '<img class="viewer-av" src="' + photoUrl(user.photo, 120, 120) + '" width="120" height="120" alt="" />' +
-      '<div><div class="viewer-name" id="viewerName">' + esc(user.name) + " さんのログ</div>" +
-      '<div class="viewer-vibe">' + esc(user.vibe) + "</div></div>";
-    document.getElementById("viewerTimeline").innerHTML = user.log.map(function (l) {
-      return '<div class="tl-item">' +
-        '<span class="tl-time">' + esc(l.t) + "</span>" +
-        '<img class="tl-clip" src="' + photoUrl(l.seed, 96, 96) + '" width="96" height="96" loading="lazy" alt="" />' +
-        '<span class="tl-note">' + esc(l.note) + "</span></div>";
+      '<div><div class="viewer-name" id="viewerName">' + esc(user.name) + "</div>" +
+      '<div class="viewer-vibe">' + (user.pref ? esc(user.pref) : "") +
+        (user.vibe ? "・" + esc(user.vibe) : "") + "</div></div>";
+    var tags = (user.tags || []).map(function (t) {
+      return '<span class="tag">#' + esc(t) + "</span>";
     }).join("");
+    document.getElementById("viewerTimeline").innerHTML =
+      '<p class="viewer-bio">' + esc(user.bio || "") + "</p>" +
+      (tags ? '<div class="viewer-tags">' + tags + "</div>" : "");
     openOverlay(document.getElementById("logViewer"));
   }
 
@@ -378,9 +376,10 @@
 
       if (imgInput) imgInput.addEventListener("change", function () {
         var f = imgInput.files && imgInput.files[0];
-        if (!f) { pendingImage = null; updatePreview(); return; }
+        if (!f) { pendingImage = null; setUploadState("pf-image", "画像を選ぶ", false); updatePreview(); return; }
         downscaleImage(f, 512, function (dataUrl) {
           pendingImage = dataUrl || null;
+          setUploadState("pf-image", dataUrl ? "画像を変更" : "画像を選ぶ", !!dataUrl);
           updatePreview();
         });
       });
@@ -391,7 +390,7 @@
         if (verr) verr.hidden = true;
         if (pendingVideoUrl) { try { URL.revokeObjectURL(pendingVideoUrl); } catch (e) {} pendingVideoUrl = null; }
         pendingVideoName = "";
-        if (!f) { updatePreview(); return; }
+        if (!f) { setUploadState("pf-video", "動画を選ぶ", false); updatePreview(); return; }
         // 長さ3秒までを検査（メタデータだけ読む）
         var probeUrl = URL.createObjectURL(f);
         var probe = document.createElement("video");
@@ -402,17 +401,20 @@
           if (isFinite(d) && d > 3.3) { // 3秒まで（エンコード誤差を少し許容）
             if (verr) { verr.textContent = "動画は3秒までです（選んだ動画は約" + d.toFixed(1) + "秒）。"; verr.hidden = false; }
             vidInput.value = "";
+            setUploadState("pf-video", "動画を選ぶ", false);
             updatePreview();
             return;
           }
           pendingVideoName = f.name;
           pendingVideoUrl = URL.createObjectURL(f);
+          setUploadState("pf-video", "動画を変更", true);
           updatePreview();
         };
         probe.onerror = function () {
           try { URL.revokeObjectURL(probeUrl); } catch (e) {}
           if (verr) { verr.textContent = "この動画を読み込めませんでした。別の動画をお試しください。"; verr.hidden = false; }
           vidInput.value = "";
+          setUploadState("pf-video", "動画を選ぶ", false);
           updatePreview();
         };
         probe.src = probeUrl;

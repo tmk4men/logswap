@@ -16,6 +16,8 @@ window.MOCK_USERS = [
     vibe: "朝活とカフェ巡り",
     bio: "平日の朝がいちばん好き。淡いトーンのログを撮ってます。",
     photo: "logswap-aoi-morning",
+    pref: "東京都",
+    video: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
     tags: ["朝活", "カフェ", "フィルムっぽい"],
     likesBack: true,
     log: [
@@ -31,6 +33,8 @@ window.MOCK_USERS = [
     vibe: "音楽とレコ屋",
     bio: "ディグった日のログが多め。おすすめ交換しよ。",
     photo: "logswap-haru-records",
+    pref: "大阪府",
+    video: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
     tags: ["音楽", "レコード", "散歩"],
     likesBack: true,
     log: [
@@ -46,6 +50,8 @@ window.MOCK_USERS = [
     vibe: "写真と散歩",
     bio: "気になった景色をひたすら撮る人。無加工派です。",
     photo: "logswap-rin-street",
+    pref: "京都府",
+    video: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
     tags: ["写真", "散歩", "無加工"],
     likesBack: false,
     log: [
@@ -61,6 +67,8 @@ window.MOCK_USERS = [
     vibe: "筋トレと自炊",
     bio: "整える系の一日。レシピ交換したいです。",
     photo: "logswap-sora-gym",
+    pref: "福岡県",
+    video: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
     tags: ["筋トレ", "自炊", "サウナ"],
     likesBack: true,
     log: [
@@ -76,6 +84,8 @@ window.MOCK_USERS = [
     vibe: "読書と喫茶店",
     bio: "静かな一日のログばかり。栞がわりに交換しませんか。",
     photo: "logswap-nagi-cafe",
+    pref: "神奈川県",
+    video: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4",
     tags: ["読書", "喫茶店", "文具"],
     likesBack: false,
     log: [
@@ -91,6 +101,8 @@ window.MOCK_USERS = [
     vibe: "旅と地図",
     bio: "週末はだいたいどこかにいます。移動のログ多め。",
     photo: "logswap-kai-travel",
+    pref: "北海道",
+    video: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4",
     tags: ["旅", "電車", "ローカル飯"],
     likesBack: true,
     log: [
@@ -106,6 +118,8 @@ window.MOCK_USERS = [
     vibe: "おやつと手づくり",
     bio: "甘いものを作った日のログ。レシピ交換歓迎です。",
     photo: "logswap-mio-bake",
+    pref: "愛知県",
+    video: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4",
     tags: ["お菓子", "手づくり", "おうち"],
     likesBack: true,
     log: [
@@ -121,6 +135,8 @@ window.MOCK_USERS = [
     vibe: "夜更かしと作業",
     bio: "夜型の一日。深夜のログが中心です。",
     photo: "logswap-yuki-night",
+    pref: "沖縄県",
+    video: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/VolkswagenGTIReview.mp4",
     tags: ["夜型", "作業", "ゲーム"],
     likesBack: false,
     log: [
