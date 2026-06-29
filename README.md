@@ -1,6 +1,6 @@
 # LogSwap｜セットログ交換アプリ（デモ）
 
-「セットログ（その日の断片的な日常ログ）」を交換する相手を見つける、Tinder 風スワイプ UI のランディング兼デモです。ヒーロー内の実機フレームで、実際にスワイプを試せます。
+「セットログ（その日の断片的な日常ログ）」を交換する相手を見つける、Tinder 風スワイプ UI のランディング兼デモです。ヒーロー内の実機フレームで、実際にスワイプを試せます。全画面で操作したいときは「アプリを開く」（`app.html`）へ。
 
 🔗 **デモ:** https://tmk4men.github.io/logswap/
 📦 **リポジトリ:** https://github.com/tmk4men/logswap
@@ -57,7 +57,8 @@ AI っぽいテンプレート感（紫グラデ・近黒×蛍光・新聞調レ
 
 ```
 .
-├── index.html        # ランディング + デモ
+├── index.html        # ランディング + ヒーロー内デモ
+├── app.html          # アプリ単体画面（全画面でスワイプ）
 ├── css/style.css     # スタイル
 ├── js/
 │   ├── data.js       # モックユーザー & セットログ
@@ -67,6 +68,34 @@ AI っぽいテンプレート感（紫グラデ・近黒×蛍光・新聞調レ
     ├── og.svg        # OGP 画像のソース
     └── favicon.svg
 ```
+
+## Android アプリ化（Capacitor）
+
+Web の中身をそのまま包む形で、Android ネイティブアプリ（`com.tmk4men.logswap`）をビルドできます。
+GitHub Pages 用のルート構成（`index.html` = ランディング）はそのまま、配信用の `www/` を生成して使います。
+
+- `www/index.html` … スワイプ画面（`app.html` 由来。アプリ起動時はここに直行）
+- `www/landing.html` … 紹介ページ（`index.html` 由来）
+
+```bash
+npm install                 # 初回のみ
+npm run sync                # www/ を生成して android へ同期（build:www + cap sync）
+npm run android             # Android Studio で開く
+```
+
+コマンドラインから直接ビルドする場合（Android Studio 同梱の JDK / SDK を利用）:
+
+```bash
+# JAVA_HOME=<Android Studio>/jbr, ANDROID_HOME=<SDK> を設定のうえ
+cd android && ./gradlew assembleDebug
+# → android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+> [!NOTE]
+> プロジェクトパスに日本語が含まれるため `android/gradle.properties` に `android.overridePathCheck=true` を設定しています。
+> 純粋な Web ラッパー（NDK 不使用）のため現状ビルドできていますが、将来トラブルが出たら ASCII のみのパスへ移動してください。
+
+広告（AdMob）の組み込みは次フェーズで `@capacitor-community/admob` を追加予定です。
 
 ## このデモから本番にするには
 

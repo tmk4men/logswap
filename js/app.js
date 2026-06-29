@@ -320,10 +320,18 @@
     });
     // Esc で閉じる
     document.addEventListener("keydown", function (e) {
-      if (e.key === "Escape") eachOverlay(function (ov) { ov.hidden = true; });
-      else if (e.key === "ArrowRight") swipeTop("yes");
+      if (e.key === "Escape") { eachOverlay(function (ov) { ov.hidden = true; }); return; }
+      // モーダルが開いている間は矢印キーで背後のデッキを動かさない
+      if (anyOverlayOpen()) return;
+      if (e.key === "ArrowRight") swipeTop("yes");
       else if (e.key === "ArrowLeft") swipeTop("no");
     });
+  }
+
+  function anyOverlayOpen() {
+    var open = false;
+    eachOverlay(function (ov) { if (!ov.hidden) open = true; });
+    return open;
   }
 
   function eachOverlay(fn) {

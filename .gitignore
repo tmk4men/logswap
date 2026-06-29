@@ -8,3 +8,17 @@ desktop.ini
 # logs
 *.log
 npm-debug.log*
+
+# node / capacitor
+node_modules/
+www/
+
+# android (generated build artifacts; android/ project itself is tracked)
+android/.gradle/
+android/app/build/
+android/build/
+android/captures/
+android/local.properties
+android/app/release/
+*.keystore
+*.jks
