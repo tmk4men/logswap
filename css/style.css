@@ -6,20 +6,20 @@
    ========================================================= */
 
 :root {
-  --paper: #f5f4f1;
+  --paper: #f2effb;         /* かなり薄い紫（ラベンダー）をベースに */
   --paper-2: #ffffff;
-  --ink: #1b1a17;
-  --ink-2: #46443e;
-  --muted: #7a776f;
-  --line: #e5e3dd;
+  --ink: #1c1a24;           /* 寒色寄りのニアブラック */
+  --ink-2: #48454f;
+  --muted: #7c7989;
+  --line: #e6e2f1;          /* ラベンダー寄りの境界線 */
   --accent: #fb4a3e;        /* coral：ブランド＝「交換したい」 */
   --accent-ink: #c5342a;
   --ok: #2f9e74;            /* 成立サイン用 */
   --radius: 16px;
   --radius-lg: 22px;
-  --shadow-sm: 0 1px 2px rgba(27, 26, 23, 0.06), 0 6px 16px rgba(27, 26, 23, 0.06);
-  --shadow-md: 0 10px 30px rgba(27, 26, 23, 0.12);
-  --shadow-lg: 0 30px 70px rgba(27, 26, 23, 0.22);
+  --shadow-sm: 0 1px 2px rgba(45, 38, 70, 0.07), 0 6px 16px rgba(45, 38, 70, 0.07);
+  --shadow-md: 0 10px 30px rgba(45, 38, 70, 0.13);
+  --shadow-lg: 0 30px 70px rgba(45, 38, 70, 0.22);
   --maxw: 1120px;
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
   font-family: "Zen Kaku Gothic New", system-ui, "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
@@ -471,7 +471,7 @@ a { color: inherit; text-decoration: none; }
 .app-page {
   overflow: hidden;
   background:
-    radial-gradient(120% 70% at 50% -10%, #fbfaf7 0%, rgba(251, 250, 247, 0) 60%),
+    radial-gradient(120% 70% at 50% -10%, #faf8ff 0%, rgba(250, 248, 255, 0) 60%),
     radial-gradient(90% 60% at 50% 112%, color-mix(in srgb, var(--accent) 7%, var(--paper)) 0%, var(--paper) 55%);
 }
 .app-shell {
@@ -496,6 +496,7 @@ a { color: inherit; text-decoration: none; }
   border-radius: 50%; color: var(--ink-2); transition: background 0.2s, color 0.2s;
 }
 .app-back:hover { background: var(--line); color: var(--ink); }
+.app-bar-spacer { width: 38px; flex: 0 0 auto; } /* app-back と対でブランドを中央寄せ */
 .chip-btn.dark { background: var(--line); color: var(--ink); }
 .chip-btn.dark:hover { background: #d9d6cf; }
 
@@ -507,6 +508,52 @@ a { color: inherit; text-decoration: none; }
 
 /* 明るい背景ではコーチの白カードを少しだけ濃く */
 .app-page .coach-side { background: rgba(27, 26, 23, 0.78); }
+
+/* ---------------- 初回プロフィール入力 ---------------- */
+.profile-setup {
+  flex: 1 1 auto; min-height: 0;
+  display: flex; flex-direction: column; justify-content: center; gap: 16px;
+  width: 100%; padding: 8px 4px 12px; overflow-y: auto;
+}
+.profile-setup .ps-head { margin-bottom: 2px; }
+.profile-setup h2 { margin: 0 0 4px; font-size: 22px; font-weight: 900; letter-spacing: -0.01em; }
+.profile-setup .ps-sub { margin: 0; font-size: 13.5px; color: var(--ink-2); line-height: 1.6; }
+.pf-field { display: flex; flex-direction: column; gap: 6px; }
+.pf-field label { font-size: 13px; font-weight: 700; color: var(--ink); }
+.pf-hint { margin: 0; font-size: 12px; color: var(--muted); }
+.pf-err { margin: 0; font-size: 12.5px; font-weight: 600; color: var(--accent-ink); }
+.pf-input, .pf-handle-wrap {
+  background: var(--paper-2); border: 1.5px solid var(--line); border-radius: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.pf-input {
+  font-family: inherit; font-size: 15px; color: var(--ink);
+  padding: 12px 14px; width: 100%;
+}
+.pf-input::placeholder { color: var(--muted); }
+.pf-input:focus-visible {
+  outline: none; border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.pf-handle-wrap { display: flex; align-items: center; overflow: hidden; }
+.pf-handle-wrap:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.pf-at { padding-left: 14px; color: var(--muted); font-family: "Space Grotesk", sans-serif; font-size: 15px; }
+.pf-handle-wrap input {
+  flex: 1; min-width: 0; border: none; outline: none; background: transparent;
+  font-family: inherit; font-size: 15px; color: var(--ink);
+  padding: 12px 14px 12px 4px;
+}
+.pf-input[aria-invalid="true"], .pf-input[aria-invalid="true"]:focus-visible {
+  border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.profile-setup .btn-primary { margin-top: 4px; width: 100%; }
+.pf-file { font-family: inherit; font-size: 13px; color: var(--ink-2); }
+.pf-preview { margin-top: 2px; }
+.pf-preview video { width: 100%; max-height: 220px; border-radius: 14px; background: #000; display: block; }
+.pf-preview-img img { width: 120px; height: 120px; object-fit: cover; border-radius: 16px; background: var(--line); display: block; }
 
 @media (min-width: 600px) {
   .app-shell {

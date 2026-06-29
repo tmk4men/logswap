@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#f5f5f3" />
+  <meta name="theme-color" content="#f2effb" />
 
-  <title>LogSwap｜セットログを交換しよう</title>
-  <meta name="description" content="気になる人の「きょうのセットログ」に交換リクエストを送ろう。おたがいOKで、その日のミニVlogを見せ合えるログ交換アプリ。" />
+  <title>LogSwap｜ログを交換しよう</title>
+  <meta name="description" content="気になる人の「きょうのログ」に交換リクエストを送ろう。おたがいOKで、その日のミニVlogを見せ合えるログ交換アプリ。" />
   <link rel="canonical" href="https://tmk4men.github.io/logswap/" />
 
   <!-- OGP -->
@@ -14,25 +14,25 @@
   <meta property="og:site_name" content="LogSwap" />
   <meta property="og:locale" content="ja_JP" />
   <meta property="og:url" content="https://tmk4men.github.io/logswap/" />
-  <meta property="og:title" content="LogSwap｜セットログを交換しよう" />
-  <meta property="og:description" content="気になる人の「きょうのセットログ」に交換リクエストを送ろう。おたがいOKで、その日のミニVlogを見せ合えるログ交換アプリ。" />
+  <meta property="og:title" content="LogSwap｜ログを交換しよう" />
+  <meta property="og:description" content="気になる人の「きょうのログ」に交換リクエストを送ろう。おたがいOKで、その日のミニVlogを見せ合えるログ交換アプリ。" />
   <meta property="og:image" content="https://tmk4men.github.io/logswap/assets/og.png" />
   <meta property="og:image:type" content="image/png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
-  <meta property="og:image:alt" content="LogSwap セットログを交換しよう" />
+  <meta property="og:image:alt" content="LogSwap ログを交換しよう" />
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="LogSwap｜セットログを交換しよう" />
-  <meta name="twitter:description" content="気になる人の「きょうのセットログ」に交換リクエストを送ろう。おたがいOKで、その日のミニVlogを見せ合える。" />
+  <meta name="twitter:title" content="LogSwap｜ログを交換しよう" />
+  <meta name="twitter:description" content="気になる人の「きょうのログ」に交換リクエストを送ろう。おたがいOKで、その日のミニVlogを見せ合える。" />
   <meta name="twitter:image" content="https://tmk4men.github.io/logswap/assets/og.png" />
 
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/style.css?v=20260629" />
 </head>
 <body>
   <!-- ============ Nav ============ -->
@@ -54,10 +54,10 @@
     <!-- ============ Hero（左：訴求 / 右：実際に動くデモ）============ -->
     <section class="hero">
       <div class="hero-copy reveal">
-        <p class="eyebrow">セットログ交換アプリ</p>
+        <p class="eyebrow">ログ交換アプリ</p>
         <h1 class="hero-title">その日のログを、<br><span class="accent">交換しよう。</span></h1>
         <p class="hero-sub">
-          気になる人の「きょうのセットログ」に、交換リクエストを送るだけ。<br>
+          気になる人の「きょうのログ」に、交換リクエストを送るだけ。<br>
           おたがいがOKしたら、その日のミニVlogを見せ合えます。
         </p>
         <div class="hero-actions">
@@ -71,10 +71,6 @@
         <div class="phone" role="application" aria-label="LogSwap デモ">
           <div class="phone-bar">
             <span class="phone-brand">LogSwap</span>
-            <button class="chip-btn" id="matchesBtn" type="button" aria-label="交換成立したログ">
-              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" class="ico-line"><path d="M7 7h9l-2.5-2.5M17 17H8l2.5 2.5"/></svg>
-              <span class="chip-count" id="matchCount" hidden>0</span>
-            </button>
           </div>
 
           <div class="stage">
@@ -134,7 +130,7 @@
         <li class="step reveal">
           <span class="step-no">1</span>
           <h3>カードを見る</h3>
-          <p>相手の「きょうのセットログ」が1枚ずつ表示されます。</p>
+          <p>相手の「きょうのログ」が1枚ずつ表示されます。</p>
         </li>
         <li class="step reveal">
           <span class="step-no">2</span>
@@ -155,7 +151,7 @@
         <div class="about-copy reveal">
           <h2>「交換」のための<br>アプリです</h2>
           <p>
-            LogSwap は、その日の断片的な記録＝セットログを交換するためのツールです。
+            LogSwap は、その日の断片的な記録＝ログを交換するためのツールです。
             相手を性別や年齢でしぼり込む機能はなく、出会いを目的とした仕組みも持ちません。
           </p>
           <p class="about-quiet">
@@ -214,22 +210,8 @@
       <p class="match-sub" id="matchSub"></p>
       <div class="match-logs" id="matchLogs"></div>
       <div class="dialog-actions">
-        <button class="btn-primary" id="viewLogBtn" type="button">交換したログを見る</button>
-        <button class="btn-ghost" id="keepSwiping" type="button">スワイプを続ける</button>
+        <button class="btn-primary" id="keepSwiping" type="button">スワイプを続ける</button>
       </div>
-    </div>
-  </div>
-
-  <!-- ============ Matches sheet ============ -->
-  <div class="overlay sheet-overlay" id="matchesSheet" hidden>
-    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
-      <div class="sheet-head">
-        <h2 id="sheetTitle">交換成立したログ</h2>
-        <button class="chip-btn" id="closeSheet" type="button" aria-label="閉じる">
-          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" class="ico-line"><path d="M6 6l12 12M18 6L6 18"/></svg>
-        </button>
-      </div>
-      <div class="sheet-list" id="matchesList"></div>
     </div>
   </div>
 
@@ -242,7 +224,7 @@
     </div>
   </div>
 
-  <script src="js/data.js"></script>
-  <script src="js/app.js"></script>
+  <script src="js/data.js?v=20260629"></script>
+  <script src="js/app.js?v=20260629"></script>
 </body>
 </html>

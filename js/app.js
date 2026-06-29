@@ -1,11 +1,11 @@
 /**
- * LogSwap｜セットログ交換デモ
+ * LogSwap｜ログ交換デモ
  *
  * ヒーロー内の実機フレームで動く、Tinder風スワイプデモ。
  * 相互に「交換したい」が出たらログ交換が成立する擬似マッチング。
  * バックエンドはなく、すべてブラウザ内で完結します。
  *
- * これは「セットログ（日常ログ）を交換するためのツール」であり、
+ * これは「ログ（日常ログ）を交換するためのツール」であり、
  * 性別・年齢でのフィルタなど、出会いを目的とした要素は持たせていません。
  */
 (function () {
@@ -23,12 +23,46 @@
   var deckEl = document.getElementById("deck");
   var emptyEl = document.getElementById("empty");
   var controlsEl = document.getElementById("controls");
-  var matchCountEl = document.getElementById("matchCount");
   var coachEl = document.getElementById("coach");
 
   // 画像URL（picsum を webp で。リポジトリを軽く保つため外部参照）
   function photoUrl(seed, w, h) {
     return "https://picsum.photos/seed/" + encodeURIComponent(seed) + "/" + w + "/" + h + ".webp";
+  }
+
+  // ---------- プロフィール（初回入力 → localStorage に保存） ----------
+  var PROFILE_KEY = "logswap_profile";
+  function getProfile() {
+    try { return JSON.parse(localStorage.getItem(PROFILE_KEY) || "null"); }
+    catch (e) { return null; }
+  }
+  function saveProfile(p) {
+    try { localStorage.setItem(PROFILE_KEY, JSON.stringify(p)); } catch (e) {}
+  }
+
+  var pendingImage = null;     // ダウンスケール済み画像 dataURL
+  var pendingVideoName = "";   // 動画ファイル名（実体の保存はバックエンド前提）
+  var pendingVideoUrl = null;  // セッション内プレビュー用 objectURL
+
+  // 画像を端末内で縮小して dataURL 化（localStorage に収めるため）
+  function downscaleImage(file, maxSize, cb) {
+    var reader = new FileReader();
+    reader.onload = function () {
+      var img = new Image();
+      img.onload = function () {
+        var scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+        var w = Math.max(1, Math.round(img.width * scale));
+        var h = Math.max(1, Math.round(img.height * scale));
+        var canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        try { cb(canvas.toDataURL("image/jpeg", 0.82)); } catch (e) { cb(""); }
+      };
+      img.onerror = function () { cb(""); };
+      img.src = reader.result;
+    };
+    reader.onerror = function () { cb(""); };
+    reader.readAsDataURL(file);
   }
 
   // ---------- 初期化 ----------
@@ -37,9 +71,26 @@
     index = 0;
     matches = [];
     coachShown = false;
-    updateMatchBadge();
-    render();
-    bindControls();
+    // app.html では初回（プロフィール未登録）はプロフ入力から入る
+    var gate = document.getElementById("profileSetup");
+    if (gate && !getProfile()) { setAppGated(true); }
+    else { render(); }
+  }
+
+  // プロフ入力ゲートの表示切替（app.html のみ。要素が無ければ何もしない）
+  function setAppGated(gated) {
+    var gate = document.getElementById("profileSetup");
+    var stage = document.querySelector(".app-stage .stage");
+    if (gate) gate.hidden = !gated;
+    if (stage) stage.hidden = gated;
+    if (gated) {
+      controlsEl.setAttribute("aria-hidden", "true");
+      controlsEl.style.visibility = "hidden";
+      setFocus(document.getElementById("pf-name"));
+    } else {
+      controlsEl.removeAttribute("aria-hidden");
+      controlsEl.style.visibility = "visible";
+    }
   }
 
   // 先頭2枚だけ描画して、スタック感を出す。
@@ -101,7 +152,7 @@
       '<div class="card-foot">' +
         '<p class="card-bio">' + esc(user.bio) + "</p>" +
         '<div class="card-tags">' + tags + "</div>" +
-        '<div class="log-cap">きょうのセットログ</div>' +
+        '<div class="log-cap">きょうのログ</div>' +
         '<div class="thumbs">' + thumbs + "</div>" +
       "</div>";
 
@@ -190,7 +241,7 @@
 
   // ---------- オーバーレイ開閉＋フォーカス管理（a11y） ----------
   var lastFocused = null;
-  var OVERLAY_IDS = ["logViewer", "matchesSheet", "matchOverlay"]; // 手前から順に
+  var OVERLAY_IDS = ["logViewer", "matchOverlay"]; // 手前から順に
 
   function focusables(el) {
     return Array.prototype.filter.call(
@@ -220,31 +271,25 @@
     if (!anyOverlayOpen() && lastFocused) { setFocus(lastFocused); lastFocused = null; }
   }
 
-  // ---------- マッチ ----------
+  // ---------- マッチ（成立演出のみ） ----------
   function registerMatch(user) {
     if (matches.some(function (m) { return m.id === user.id; })) return;
     matches.push(user);
-    updateMatchBadge();
     showMatch(user);
-  }
-
-  function updateMatchBadge() {
-    if (matches.length > 0) {
-      matchCountEl.hidden = false;
-      matchCountEl.textContent = matches.length;
-    } else {
-      matchCountEl.hidden = true;
-    }
   }
 
   function showMatch(user) {
     var overlay = document.getElementById("matchOverlay");
     document.getElementById("matchSub").textContent =
       esc(user.name) + " さんと、おたがいに交換を希望しました。";
+    var me = getProfile();
+    var youAv = (me && me.image)
+      ? '<img class="match-av" src="' + me.image + '" width="160" height="160" alt="あなた" />'
+      : '<span class="match-av match-you" role="img" aria-label="あなた">' +
+          '<svg viewBox="0 0 24 24" width="34" height="34" class="ico-line"><circle cx="12" cy="8" r="4"/><path d="M5 20c0-3.5 3.1-6 7-6s7 2.5 7 6"/></svg>' +
+        "</span>";
     document.getElementById("matchLogs").innerHTML =
-      '<span class="match-av match-you" role="img" aria-label="あなた">' +
-        '<svg viewBox="0 0 24 24" width="34" height="34" class="ico-line"><circle cx="12" cy="8" r="4"/><path d="M5 20c0-3.5 3.1-6 7-6s7 2.5 7 6"/></svg>' +
-      "</span>" +
+      youAv +
       '<span class="match-swap" aria-hidden="true">' +
         '<svg viewBox="0 0 24 24" width="22" height="22" class="ico-line"><path d="M7 7h9l-2.5-2.5M17 17H8l2.5 2.5"/></svg>' +
       "</span>" +
@@ -254,10 +299,6 @@
     // 対応端末では軽くバイブ（成立の手応え）
     if (navigator.vibrate) { try { navigator.vibrate([0, 35, 30, 55]); } catch (e) {} }
 
-    document.getElementById("viewLogBtn").onclick = function () {
-      openViewer(user);
-      closeOverlay(overlay);
-    };
     document.getElementById("keepSwiping").onclick = function () {
       closeOverlay(overlay);
     };
@@ -289,36 +330,11 @@
     setTimeout(function () { box.innerHTML = ""; }, 2600);
   }
 
-  // ---------- マッチ一覧シート ----------
-  function openSheet() {
-    var sheet = document.getElementById("matchesSheet");
-    var list = document.getElementById("matchesList");
-    if (matches.length === 0) {
-      list.innerHTML = '<p class="sheet-empty">まだ交換成立したログはありません。<br>「交換したい」を送ってみましょう。</p>';
-    } else {
-      list.innerHTML = matches.map(function (u) {
-        return '<button class="match-row" type="button" data-id="' + u.id + '">' +
-          '<img class="row-av" src="' + photoUrl(u.photo, 96, 96) + '" width="96" height="96" alt="" />' +
-          '<span class="row-meta"><span class="row-name">' + esc(u.name) + "</span>" +
-          '<span class="row-vibe">' + esc(u.vibe) + "</span></span>" +
-          '<span class="row-go" aria-hidden="true">見る →</span></button>';
-      }).join("");
-      Array.prototype.forEach.call(list.querySelectorAll(".match-row"), function (row) {
-        row.onclick = function () {
-          var u = matches.filter(function (m) { return m.id === row.dataset.id; })[0];
-          openViewer(u);
-          closeOverlay(sheet);
-        };
-      });
-    }
-    openOverlay(sheet);
-  }
-
   // ---------- ログビューア ----------
   function openViewer(user) {
     document.getElementById("viewerHead").innerHTML =
       '<img class="viewer-av" src="' + photoUrl(user.photo, 120, 120) + '" width="120" height="120" alt="" />' +
-      '<div><div class="viewer-name" id="viewerName">' + esc(user.name) + " さんのセットログ</div>" +
+      '<div><div class="viewer-name" id="viewerName">' + esc(user.name) + " さんのログ</div>" +
       '<div class="viewer-vibe">' + esc(user.vibe) + "</div></div>";
     document.getElementById("viewerTimeline").innerHTML = user.log.map(function (l) {
       return '<div class="tl-item">' +
@@ -337,10 +353,60 @@
       if (index < users.length) openViewer(users[index]);
     };
     document.getElementById("resetBtn").onclick = init;
-    document.getElementById("matchesBtn").onclick = openSheet;
-    document.getElementById("closeSheet").onclick = function () {
-      closeOverlay(document.getElementById("matchesSheet"));
-    };
+
+    // 初回プロフィール入力フォーム（app.html のみ）
+    var pform = document.getElementById("profileSetup");
+    if (pform) {
+      var imgInput = document.getElementById("pf-image");
+      var vidInput = document.getElementById("pf-video");
+
+      if (imgInput) imgInput.addEventListener("change", function () {
+        var f = imgInput.files && imgInput.files[0];
+        var prev = document.getElementById("pf-image-preview");
+        if (!f) { pendingImage = null; if (prev) { prev.hidden = true; prev.innerHTML = ""; } return; }
+        downscaleImage(f, 512, function (dataUrl) {
+          pendingImage = dataUrl || null;
+          if (prev) {
+            if (dataUrl) { prev.hidden = false; prev.innerHTML = '<img src="' + dataUrl + '" alt="プロフィール画像のプレビュー" />'; }
+            else { prev.hidden = true; prev.innerHTML = ""; }
+          }
+        });
+      });
+
+      if (vidInput) vidInput.addEventListener("change", function () {
+        var f = vidInput.files && vidInput.files[0];
+        var prev = document.getElementById("pf-video-preview");
+        if (pendingVideoUrl) { try { URL.revokeObjectURL(pendingVideoUrl); } catch (e) {} pendingVideoUrl = null; }
+        if (!f) { pendingVideoName = ""; if (prev) { prev.hidden = true; prev.innerHTML = ""; } return; }
+        pendingVideoName = f.name;
+        pendingVideoUrl = URL.createObjectURL(f);
+        if (prev) { prev.hidden = false; prev.innerHTML = '<video src="' + pendingVideoUrl + '" controls playsinline preload="metadata"></video>'; }
+      });
+
+      pform.addEventListener("submit", function (e) {
+        e.preventDefault();
+        var nameEl = document.getElementById("pf-name");
+        var name = nameEl.value.trim();
+        var err = document.getElementById("pf-name-err");
+        if (!name) {
+          if (err) err.hidden = false;
+          nameEl.setAttribute("aria-invalid", "true");
+          setFocus(nameEl);
+          return;
+        }
+        if (err) err.hidden = true;
+        nameEl.removeAttribute("aria-invalid");
+        saveProfile({
+          name: name,
+          pref: document.getElementById("pf-pref").value,
+          gender: document.getElementById("pf-gender").value,
+          image: pendingImage || "",
+          videoName: pendingVideoName || ""
+        });
+        setAppGated(false);
+        render();
+      });
+    }
     document.getElementById("closeViewer").onclick = function () {
       closeOverlay(document.getElementById("logViewer"));
     };
@@ -378,7 +444,7 @@
   }
 
   function eachOverlay(fn) {
-    ["matchOverlay", "matchesSheet", "logViewer"].forEach(function (id) {
+    ["matchOverlay", "logViewer"].forEach(function (id) {
       var el = document.getElementById(id);
       if (el) fn(el);
     });
@@ -406,6 +472,7 @@
     });
   }
 
+  bindControls();
   init();
   setupReveal();
 })();
