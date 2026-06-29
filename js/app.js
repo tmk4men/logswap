@@ -188,6 +188,38 @@
     coachShown = true;
   }
 
+  // ---------- オーバーレイ開閉＋フォーカス管理（a11y） ----------
+  var lastFocused = null;
+  var OVERLAY_IDS = ["logViewer", "matchesSheet", "matchOverlay"]; // 手前から順に
+
+  function focusables(el) {
+    return Array.prototype.filter.call(
+      el.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'),
+      function (n) { return !n.disabled && n.offsetParent !== null; }
+    );
+  }
+  function setFocus(el) {
+    if (!el || !el.focus) return;
+    try { el.focus({ preventScroll: true }); } catch (e) { el.focus(); }
+  }
+  function currentOverlay() {
+    for (var i = 0; i < OVERLAY_IDS.length; i++) {
+      var el = document.getElementById(OVERLAY_IDS[i]);
+      if (el && !el.hidden) return el;
+    }
+    return null;
+  }
+  function openOverlay(el) {
+    if (!lastFocused) lastFocused = document.activeElement; // 復帰先を記憶
+    el.hidden = false;
+    setFocus(focusables(el)[0]); // ダイアログ内へフォーカスを移す
+  }
+  function closeOverlay(el) {
+    el.hidden = true;
+    // 他に開いているものが無ければ、開く前の要素へフォーカスを戻す
+    if (!anyOverlayOpen() && lastFocused) { setFocus(lastFocused); lastFocused = null; }
+  }
+
   // ---------- マッチ ----------
   function registerMatch(user) {
     if (matches.some(function (m) { return m.id === user.id; })) return;
@@ -217,17 +249,17 @@
         '<svg viewBox="0 0 24 24" width="22" height="22" class="ico-line"><path d="M7 7h9l-2.5-2.5M17 17H8l2.5 2.5"/></svg>' +
       "</span>" +
       '<img class="match-av" src="' + photoUrl(user.photo, 160, 160) + '" width="160" height="160" alt="' + esc(user.name) + '" />';
-    overlay.hidden = false;
+    openOverlay(overlay);
     if (!reduceMotion) burstConfetti();
     // 対応端末では軽くバイブ（成立の手応え）
     if (navigator.vibrate) { try { navigator.vibrate([0, 35, 30, 55]); } catch (e) {} }
 
     document.getElementById("viewLogBtn").onclick = function () {
-      overlay.hidden = true;
       openViewer(user);
+      closeOverlay(overlay);
     };
     document.getElementById("keepSwiping").onclick = function () {
-      overlay.hidden = true;
+      closeOverlay(overlay);
     };
   }
 
@@ -274,12 +306,12 @@
       Array.prototype.forEach.call(list.querySelectorAll(".match-row"), function (row) {
         row.onclick = function () {
           var u = matches.filter(function (m) { return m.id === row.dataset.id; })[0];
-          sheet.hidden = true;
           openViewer(u);
+          closeOverlay(sheet);
         };
       });
     }
-    sheet.hidden = false;
+    openOverlay(sheet);
   }
 
   // ---------- ログビューア ----------
@@ -294,7 +326,7 @@
         '<img class="tl-clip" src="' + photoUrl(l.seed, 96, 96) + '" width="96" height="96" loading="lazy" alt="" />' +
         '<span class="tl-note">' + esc(l.note) + "</span></div>";
     }).join("");
-    document.getElementById("logViewer").hidden = false;
+    openOverlay(document.getElementById("logViewer"));
   }
 
   // ---------- イベント結線 ----------
@@ -307,20 +339,31 @@
     document.getElementById("resetBtn").onclick = init;
     document.getElementById("matchesBtn").onclick = openSheet;
     document.getElementById("closeSheet").onclick = function () {
-      document.getElementById("matchesSheet").hidden = true;
+      closeOverlay(document.getElementById("matchesSheet"));
     };
     document.getElementById("closeViewer").onclick = function () {
-      document.getElementById("logViewer").hidden = true;
+      closeOverlay(document.getElementById("logViewer"));
     };
     // オーバーレイの背景クリックで閉じる
     eachOverlay(function (ov) {
       ov.addEventListener("click", function (e) {
-        if (e.target === ov) ov.hidden = true;
+        if (e.target === ov) closeOverlay(ov);
       });
     });
-    // Esc で閉じる
+    // キーボード操作
     document.addEventListener("keydown", function (e) {
-      if (e.key === "Escape") { eachOverlay(function (ov) { ov.hidden = true; }); return; }
+      if (e.key === "Escape") { eachOverlay(function (ov) { if (!ov.hidden) closeOverlay(ov); }); return; }
+      // モーダル表示中は Tab をダイアログ内に閉じ込める（フォーカストラップ）
+      if (e.key === "Tab") {
+        var ov = currentOverlay();
+        if (!ov) return;
+        var f = focusables(ov);
+        if (!f.length) { e.preventDefault(); return; }
+        var first = f[0], last = f[f.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); setFocus(last); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); setFocus(first); }
+        return;
+      }
       // モーダルが開いている間は矢印キーで背後のデッキを動かさない
       if (anyOverlayOpen()) return;
       if (e.key === "ArrowRight") swipeTop("yes");
