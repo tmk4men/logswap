@@ -327,17 +327,16 @@ a { color: inherit; text-decoration: none; }
 .match-swap { position: relative; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--accent); color: #fff; }
 .dialog-actions { display: flex; flex-direction: column; gap: 10px; }
 
-/* 成立時のSetlogアカウント開示 */
-.match-account { display: flex; flex-direction: column; align-items: center; gap: 3px; margin: 0 0 18px; }
-.ma-label { font-size: 12px; font-weight: 700; color: var(--ink-2); }
-.ma-code { font-family: "Baloo 2", sans-serif; font-size: 22px; font-weight: 700; letter-spacing: 0.02em; color: var(--accent-ink); }
-.ma-hint { font-size: 11.5px; color: var(--muted); }
-
-/* 自己紹介ビュー内のつながる情報 */
-.viewer-connect { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.vc-label { width: 100%; font-size: 12px; font-weight: 700; color: var(--ink-2); }
-.vc-code { font-family: "Baloo 2", sans-serif; font-size: 18px; font-weight: 700; color: var(--accent-ink); }
-.vc-hint { width: 100%; font-size: 11.5px; color: var(--muted); }
+/* プライバシーポリシー同意 */
+.pf-consent { margin-top: 2px; }
+.pf-check { display: flex; align-items: flex-start; gap: 9px; font-size: 13px; line-height: 1.6; color: var(--ink-2); cursor: pointer; }
+.pf-check input { margin-top: 2px; width: 18px; height: 18px; flex: none; accent-color: var(--accent); cursor: pointer; }
+.pf-link { background: none; border: none; padding: 0; font: inherit; color: var(--accent-ink); font-weight: 700; text-decoration: underline; cursor: pointer; }
+.policy-dialog { max-width: 400px; max-height: 84dvh; display: flex; flex-direction: column; }
+.policy-title { margin: 0 0 12px; font-size: 20px; font-weight: 900; }
+.policy-body { flex: 1; overflow-y: auto; margin-bottom: 16px; font-size: 13.5px; line-height: 1.75; color: var(--ink-2); }
+.policy-body h3 { margin: 16px 0 4px; font-size: 14px; font-weight: 700; color: var(--ink); }
+.policy-body p { margin: 0; }
 
 /* viewer */
 .viewer { max-width: 380px; max-height: 84dvh; overflow-y: auto; }
@@ -564,11 +563,9 @@ a { color: inherit; text-decoration: none; }
 .pf-field label, .pf-field .pf-field-label { font-size: 13px; font-weight: 700; color: var(--ink); }
 .pf-hint { margin: 0; font-size: 12px; color: var(--muted); }
 .pf-err { margin: 0; font-size: 12.5px; font-weight: 600; color: var(--accent-ink); }
-.pf-input, .pf-handle-wrap {
+.pf-input {
   background: var(--paper-2); border: 1.5px solid var(--line); border-radius: 14px;
   transition: border-color 0.2s, box-shadow 0.2s;
-}
-.pf-input {
   font-family: inherit; font-size: 15px; color: var(--ink);
   padding: 12px 14px; width: 100%;
 }
@@ -593,17 +590,6 @@ a { color: inherit; text-decoration: none; }
 /* プレースホルダ的な未選択状態は少し淡く */
 .pf-select-wrap select:invalid, .pf-select-wrap select option[value=""] { color: var(--muted); }
 
-.pf-handle-wrap { display: flex; align-items: center; overflow: hidden; }
-.pf-handle-wrap:focus-within {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
-}
-.pf-at { padding-left: 14px; color: var(--muted); font-family: "Baloo 2", sans-serif; font-size: 15px; }
-.pf-handle-wrap input {
-  flex: 1; min-width: 0; border: none; outline: none; background: transparent;
-  font-family: inherit; font-size: 15px; color: var(--ink);
-  padding: 12px 14px 12px 4px;
-}
 .pf-input[aria-invalid="true"], .pf-input[aria-invalid="true"]:focus-visible {
   border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
 }

@@ -163,7 +163,7 @@
     Array.prototype.forEach.call(list.querySelectorAll(".chat-row"), function (row) {
       row.onclick = function () {
         var u = matches.filter(function (m) { return m.id === row.dataset.id; })[0];
-        if (u) openViewer(u, true); // 成立相手なので Setlog PIN を表示
+        if (u) openViewer(u);
       };
     });
   }
@@ -202,7 +202,6 @@
   function openProfileEdit() {
     var p = getProfile() || {};
     var n = document.getElementById("pf-name"); if (n) n.value = p.name || "";
-    var pa = document.getElementById("pf-account"); if (pa) pa.value = p.account || "";
     var pr = document.getElementById("pf-pref"); if (pr) pr.value = p.pref || "";
     var g = document.getElementById("pf-gender"); if (g) g.value = p.gender || "";
     pendingImage = p.image || null;
@@ -214,6 +213,9 @@
     });
     setUploadState("pf-image", p.image ? "画像を変更" : "画像を選ぶ", !!p.image);
     setUploadState("pf-video", p.videoName ? "動画を変更" : "動画を選ぶ", !!p.videoName);
+    // 既存プロフィールの編集時は同意済みとして扱う
+    var agree = document.getElementById("pf-agree"); if (agree) agree.checked = true;
+    var agreeErr = document.getElementById("pf-agree-err"); if (agreeErr) agreeErr.hidden = true;
     setAppGated(true);
   }
 
@@ -396,7 +398,7 @@
   function showMatch(user) {
     var overlay = document.getElementById("matchOverlay");
     document.getElementById("matchSub").textContent =
-      esc(user.name) + " さんとマッチング！Setlogでつながろう。";
+      esc(user.name) + " さんとマッチング！";
     var me = getProfile();
     var youAv = (me && me.image)
       ? '<img class="match-av" src="' + me.image + '" width="160" height="160" alt="あなた" />'
@@ -409,32 +411,14 @@
         '<svg viewBox="0 0 24 24" width="22" height="22" class="ico-line"><path d="M7 7h9l-2.5-2.5M17 17H8l2.5 2.5"/></svg>' +
       "</span>" +
       '<img class="match-av" src="' + photoUrl(user.photo, 160, 160) + '" width="160" height="160" alt="' + esc(user.name) + '" />';
-    var acct = user.handle || "";
-    document.getElementById("matchAccount").innerHTML =
-      '<span class="ma-label">' + esc(user.name) + " さんの Setlogアカウント</span>" +
-      '<span class="ma-code">' + esc(acct) + "</span>" +
-      '<span class="ma-hint">Setlog でこのアカウントを友だち追加してね</span>';
     openOverlay(overlay);
     if (!reduceMotion) burstConfetti();
     // 対応端末では軽くバイブ（成立の手応え）
     if (navigator.vibrate) { try { navigator.vibrate([0, 35, 30, 55]); } catch (e) {} }
 
-    var copyBtn = document.getElementById("copyAccountBtn");
-    copyBtn.textContent = "Setlogのアカウントをコピー";
-    copyBtn.onclick = function () {
-      copyText(acct);
-      copyBtn.textContent = "コピーしました";
-    };
     document.getElementById("keepSwiping").onclick = function () {
       closeOverlay(overlay);
     };
-  }
-
-  // クリップボードへコピー（失敗しても無視）
-  function copyText(t) {
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t);
-    } catch (e) {}
   }
 
   // 紙吹雪（軽量・CSSアニメ）派手版
@@ -463,8 +447,8 @@
     setTimeout(function () { box.innerHTML = ""; }, 2600);
   }
 
-  // ---------- 自己紹介（プロフィール詳細）。showConnect=成立相手はSetlog PINを表示 ----------
-  function openViewer(user, showConnect) {
+  // ---------- 自己紹介（プロフィール詳細） ----------
+  function openViewer(user) {
     document.getElementById("viewerHead").innerHTML =
       '<img class="viewer-av" src="' + photoUrl(user.photo, 120, 120) + '" width="120" height="120" alt="" />' +
       '<div><div class="viewer-name" id="viewerName">' + esc(user.name) + "</div>" +
@@ -473,25 +457,9 @@
     var tags = (user.tags || []).map(function (t) {
       return '<span class="tag">#' + esc(t) + "</span>";
     }).join("");
-    var connect = "";
-    if (showConnect) {
-      var acct = user.handle || "";
-      connect =
-        '<div class="viewer-connect">' +
-          '<span class="vc-label">Setlogアカウント</span>' +
-          '<span class="vc-code" id="vcCode">' + esc(acct) + "</span>" +
-          '<button class="btn-primary sm" id="vcCopy" type="button">コピー</button>' +
-          '<span class="vc-hint">Setlog でこのアカウントを友だち追加してね</span>' +
-        "</div>";
-    }
     document.getElementById("viewerTimeline").innerHTML =
       '<p class="viewer-bio">' + esc(user.bio || "") + "</p>" +
-      (tags ? '<div class="viewer-tags">' + tags + "</div>" : "") +
-      connect;
-    if (showConnect) {
-      var vc = document.getElementById("vcCopy");
-      if (vc) vc.onclick = function () { copyText(user.handle || ""); vc.textContent = "コピーしました"; };
-    }
+      (tags ? '<div class="viewer-tags">' + tags + "</div>" : "");
     openOverlay(document.getElementById("logViewer"));
   }
 
@@ -576,6 +544,15 @@
         closeOverlay(document.getElementById("previewOverlay"));
       });
 
+      var openPolicy = document.getElementById("openPolicyBtn");
+      if (openPolicy) openPolicy.addEventListener("click", function () {
+        openOverlay(document.getElementById("policyOverlay"));
+      });
+      var closePolicy = document.getElementById("closePolicy");
+      if (closePolicy) closePolicy.addEventListener("click", function () {
+        closeOverlay(document.getElementById("policyOverlay"));
+      });
+
       pform.addEventListener("submit", function (e) {
         e.preventDefault();
         var nameEl = document.getElementById("pf-name");
@@ -589,13 +566,20 @@
         }
         if (err) err.hidden = true;
         nameEl.removeAttribute("aria-invalid");
+        var agree = document.getElementById("pf-agree");
+        var agreeErr = document.getElementById("pf-agree-err");
+        if (agree && !agree.checked) {
+          if (agreeErr) agreeErr.hidden = false;
+          setFocus(agree);
+          return;
+        }
+        if (agreeErr) agreeErr.hidden = true;
         var tags = Array.prototype.map.call(
           document.querySelectorAll("#pf-tags .pf-chip.is-on"),
           function (c) { return c.dataset.tag; }
         );
         saveProfile({
           name: name,
-          account: (document.getElementById("pf-account").value || "").trim().replace(/^@/, ""),
           pref: document.getElementById("pf-pref").value,
           gender: document.getElementById("pf-gender").value,
           tags: tags,

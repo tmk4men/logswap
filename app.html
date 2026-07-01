@@ -32,7 +32,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700&family=M+PLUS+Rounded+1c:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=20260629d" />
+  <link rel="stylesheet" href="css/style.css?v=20260701a" />
 </head>
 <body class="app-page">
   <div class="app-shell">
@@ -77,15 +77,6 @@
           <label for="pf-name">名前</label>
           <input class="pf-input" id="pf-name" type="text" maxlength="20" autocomplete="name" placeholder="name" required />
           <p class="pf-err" id="pf-name-err" role="alert" hidden>名前を入力してください。</p>
-        </div>
-
-        <div class="pf-field">
-          <label for="pf-account">Setlogのアカウント</label>
-          <div class="pf-handle-wrap">
-            <span class="pf-at" aria-hidden="true">@</span>
-            <input id="pf-account" type="text" maxlength="30" autocomplete="username" placeholder="setlog_id" />
-          </div>
-          <p class="pf-hint">マッチング成立後に相手へ共有されます（Setlogで友だち追加に使います）。</p>
         </div>
 
         <div class="pf-field">
@@ -161,6 +152,14 @@
           <p class="pf-hint">動画は1人につき1つ、長さは3秒までです。</p>
         </div>
 
+        <div class="pf-field pf-consent">
+          <label class="pf-check">
+            <input type="checkbox" id="pf-agree" />
+            <span><button type="button" class="pf-link" id="openPolicyBtn">プライバシーポリシー</button>を読み、個人情報の取り扱いに同意します。</span>
+          </label>
+          <p class="pf-err" id="pf-agree-err" role="alert" hidden>同意が必要です。</p>
+        </div>
+
         <button class="btn-primary" id="pfStart" type="submit">はじめる</button>
       </form>
     </main>
@@ -218,10 +217,8 @@
       <h2 class="match-title" id="matchTitle">Setlogでつながろう</h2>
       <p class="match-sub" id="matchSub"></p>
       <div class="match-logs" id="matchLogs"></div>
-      <div class="match-account" id="matchAccount"></div>
       <div class="dialog-actions">
-        <button class="btn-primary" id="copyAccountBtn" type="button">Setlogのアカウントをコピー</button>
-        <button class="btn-ghost" id="keepSwiping" type="button">スワイプを続ける</button>
+        <button class="btn-primary" id="keepSwiping" type="button">スワイプを続ける</button>
       </div>
     </div>
   </div>
@@ -247,7 +244,36 @@
     </div>
   </div>
 
-  <script src="js/data.js?v=20260629d"></script>
-  <script src="js/app.js?v=20260629d"></script>
+  <!-- プライバシーポリシー -->
+  <div class="overlay" id="policyOverlay" hidden>
+    <div class="dialog policy-dialog" role="dialog" aria-modal="true" aria-labelledby="policyTitle">
+      <h2 class="policy-title" id="policyTitle">プライバシーポリシー</h2>
+      <div class="policy-body">
+        <p>本アプリ（以下「本サービス」）における個人情報の取り扱いについて、以下のとおり定めます。</p>
+
+        <h3>1. 取得する情報</h3>
+        <p>名前、住んでいる地域（都道府県）、性別、ハッシュタグ、プロフィール画像、ログ動画。</p>
+
+        <h3>2. 利用目的</h3>
+        <p>プロフィールの作成・表示、ユーザー同士のマッチング機能の提供、本サービスの運営・改善のために利用します。上記の目的の範囲を超えて利用することはありません。</p>
+
+        <h3>3. 保存場所</h3>
+        <p>入力された情報は、お使いの端末内（ブラウザのローカルストレージ）に保存されます。外部サーバーへ送信・保存されることはありません。</p>
+
+        <h3>4. 第三者提供</h3>
+        <p>法令に基づく場合を除き、ご本人の同意なく第三者へ提供することはありません。マッチングが成立した相手には、プロフィールとして表示される情報が共有されます。</p>
+
+        <h3>5. 削除の方法</h3>
+        <p>プロフィールは端末内にのみ保存されるため、ブラウザのデータ（サイトデータ／ローカルストレージ）を削除することで、いつでも消去できます。</p>
+
+        <h3>6. お問い合わせ</h3>
+        <p>個人情報の取り扱いに関するお問い合わせは、運営者までご連絡ください。</p>
+      </div>
+      <button class="btn-primary" id="closePolicy" type="button">閉じる</button>
+    </div>
+  </div>
+
+  <script src="js/data.js?v=20260701a"></script>
+  <script src="js/app.js?v=20260701a"></script>
 </body>
 </html>
