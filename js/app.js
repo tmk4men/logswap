@@ -40,6 +40,37 @@
     try { localStorage.setItem(PROFILE_KEY, JSON.stringify(p)); } catch (e) {}
   }
 
+  // ---------- 安全機能：ブロック／通報（端末内に保存。実運用ではサーバへ送信） ----------
+  var BLOCK_KEY = "logswap_blocked";   // 非表示にする相手のID一覧（ブロック＋通報）
+  var REPORT_KEY = "logswap_reports";  // 通報記録（理由つき）
+  var viewerUser = null;               // いま詳細を開いている相手
+
+  function getBlocked() {
+    try { return JSON.parse(localStorage.getItem(BLOCK_KEY) || "[]"); }
+    catch (e) { return []; }
+  }
+  function isBlocked(id) { return getBlocked().indexOf(id) !== -1; }
+  function blockId(id) {
+    var a = getBlocked();
+    if (a.indexOf(id) === -1) { a.push(id); try { localStorage.setItem(BLOCK_KEY, JSON.stringify(a)); } catch (e) {} }
+  }
+  function addReport(id, reason) {
+    var a;
+    try { a = JSON.parse(localStorage.getItem(REPORT_KEY) || "[]"); } catch (e) { a = []; }
+    a.push({ id: id, reason: reason });
+    try { localStorage.setItem(REPORT_KEY, JSON.stringify(a)); } catch (e) {}
+  }
+  // 相手を非表示化：ブロック保存＋現在のデッキ／交換相手から除去して再描画
+  function hideUser(user) {
+    if (!user) return;
+    blockId(user.id);
+    matches = matches.filter(function (m) { return m.id !== user.id; });
+    if (users[index] && users[index].id === user.id) index++; // 表示中のカードなら次へ送る
+    render();
+    renderChat();
+    updateTabIndicators();
+  }
+
   var pendingImage = null;     // ダウンスケール済み画像 dataURL
   var pendingVideoName = "";   // 動画ファイル名（実体の保存はバックエンド前提）
   var pendingVideoUrl = null;  // セッション内プレビュー用 objectURL
@@ -90,7 +121,7 @@
 
   // ---------- 初期化 ----------
   function init() {
-    users = (window.MOCK_USERS || []).slice();
+    users = (window.MOCK_USERS || []).filter(function (u) { return !isBlocked(u.id); });
     index = 0;
     matches = [];
     coachShown = false;
@@ -356,7 +387,9 @@
 
   // ---------- オーバーレイ開閉＋フォーカス管理（a11y） ----------
   var lastFocused = null;
-  var OVERLAY_IDS = ["previewOverlay", "logViewer", "matchOverlay"]; // 手前から順に
+  // 手前（最前面）から順に。フォーカストラップ・背景クリック・Escで使う
+  var OVERLAY_IDS = ["blockOverlay", "reportOverlay", "policyOverlay", "termsOverlay",
+    "previewOverlay", "logViewer", "matchOverlay"];
 
   function focusables(el) {
     return Array.prototype.filter.call(
@@ -449,6 +482,7 @@
 
   // ---------- 自己紹介（プロフィール詳細） ----------
   function openViewer(user) {
+    viewerUser = user;
     document.getElementById("viewerHead").innerHTML =
       '<img class="viewer-av" src="' + photoUrl(user.photo, 120, 120) + '" width="120" height="120" alt="" />' +
       '<div><div class="viewer-name" id="viewerName">' + esc(user.name) + "</div>" +
@@ -461,6 +495,52 @@
       '<p class="viewer-bio">' + esc(user.bio || "") + "</p>" +
       (tags ? '<div class="viewer-tags">' + tags + "</div>" : "");
     openOverlay(document.getElementById("logViewer"));
+  }
+
+  // ---------- 通報・ブロックの結線 ----------
+  function bindModeration() {
+    var reportBtn = document.getElementById("reportUserBtn");
+    var blockBtn = document.getElementById("blockUserBtn");
+    if (!reportBtn && !blockBtn) return; // 対象UIが無いページ（index.html 等）
+
+    var reportOv = document.getElementById("reportOverlay");
+    var blockOv = document.getElementById("blockOverlay");
+
+    if (reportBtn) reportBtn.addEventListener("click", function () {
+      if (!viewerUser) return;
+      openOverlay(reportOv);
+    });
+    if (blockBtn) blockBtn.addEventListener("click", function () {
+      if (!viewerUser) return;
+      var sub = document.getElementById("blockSub");
+      if (sub) sub.textContent = esc(viewerUser.name) + " さんは今後、あなたに表示されなくなります。";
+      openOverlay(blockOv);
+    });
+
+    var reportCancel = document.getElementById("reportCancel");
+    if (reportCancel) reportCancel.addEventListener("click", function () { closeOverlay(reportOv); });
+    var reportSubmit = document.getElementById("reportSubmit");
+    if (reportSubmit) reportSubmit.addEventListener("click", function () {
+      var target = viewerUser;
+      var picked = document.querySelector('#reportReasons input[name="reportReason"]:checked');
+      var reason = picked ? picked.value : "その他";
+      if (target) { addReport(target.id, reason); }
+      closeOverlay(reportOv);
+      closeOverlay(document.getElementById("logViewer"));
+      if (target) hideUser(target);
+      viewerUser = null;
+    });
+
+    var blockCancel = document.getElementById("blockCancel");
+    if (blockCancel) blockCancel.addEventListener("click", function () { closeOverlay(blockOv); });
+    var blockConfirm = document.getElementById("blockConfirm");
+    if (blockConfirm) blockConfirm.addEventListener("click", function () {
+      var target = viewerUser;
+      closeOverlay(blockOv);
+      closeOverlay(document.getElementById("logViewer"));
+      if (target) hideUser(target);
+      viewerUser = null;
+    });
   }
 
   // ---------- イベント結線 ----------
@@ -553,6 +633,15 @@
         closeOverlay(document.getElementById("policyOverlay"));
       });
 
+      var openTerms = document.getElementById("openTermsBtn");
+      if (openTerms) openTerms.addEventListener("click", function () {
+        openOverlay(document.getElementById("termsOverlay"));
+      });
+      var closeTerms = document.getElementById("closeTerms");
+      if (closeTerms) closeTerms.addEventListener("click", function () {
+        closeOverlay(document.getElementById("termsOverlay"));
+      });
+
       pform.addEventListener("submit", function (e) {
         e.preventDefault();
         var nameEl = document.getElementById("pf-name");
@@ -605,6 +694,9 @@
     document.getElementById("closeViewer").onclick = function () {
       closeOverlay(document.getElementById("logViewer"));
     };
+
+    // 通報・ブロック（app.html のみ。要素が無ければ何もしない）
+    bindModeration();
     // オーバーレイの背景クリックで閉じる
     eachOverlay(function (ov) {
       ov.addEventListener("click", function (e) {
@@ -639,7 +731,7 @@
   }
 
   function eachOverlay(fn) {
-    ["matchOverlay", "logViewer", "previewOverlay"].forEach(function (id) {
+    OVERLAY_IDS.forEach(function (id) {
       var el = document.getElementById(id);
       if (el) fn(el);
     });
