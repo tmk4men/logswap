@@ -150,14 +150,14 @@
     var list = document.getElementById("chatList");
     if (!list) return;
     if (!matches.length) {
-      list.innerHTML = '<p class="chat-empty">マッチングすると、ここに相手が表示されます。</p>';
+      list.innerHTML = '<p class="chat-empty">ログを交換すると、ここに相手が表示されます。</p>';
       return;
     }
     list.innerHTML = matches.slice().reverse().map(function (u) {
       return '<button class="chat-row" type="button" data-id="' + u.id + '">' +
         '<img class="chat-av" src="' + photoUrl(u.photo, 96, 96) + '" alt="" />' +
         '<span class="chat-meta"><span class="chat-name">' + esc(u.name) + "</span>" +
-        '<span class="chat-last">マッチング成立。Setlogでつながろう</span></span>' +
+        '<span class="chat-last">ログを交換しました</span></span>' +
         '<span class="chat-go" aria-hidden="true">›</span></button>';
     }).join("");
     Array.prototype.forEach.call(list.querySelectorAll(".chat-row"), function (row) {
@@ -398,7 +398,7 @@
   function showMatch(user) {
     var overlay = document.getElementById("matchOverlay");
     document.getElementById("matchSub").textContent =
-      esc(user.name) + " さんとマッチング！";
+      esc(user.name) + " さんとログを交換しました！";
     var me = getProfile();
     var youAv = (me && me.image)
       ? '<img class="match-av" src="' + me.image + '" width="160" height="160" alt="あなた" />'
