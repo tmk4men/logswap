@@ -14,6 +14,21 @@
   var SWIPE_THRESHOLD = 96; // px。これを超えてリリースすると確定。
   var reduceMotion = window.matchMedia &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var CONFIG = window.LOGSWAP_CONFIG || {};
+
+  // スワイプ内広告：実カード AD_INTERVAL 枚ごとに広告カードを1枚差し込む。
+  // 既定は無効（config.js の ADS_ENABLED）。有効時のみ配列に __ad マーカーを挿入。
+  // 広告カードは「枠」だけ。実際の広告は AdMob(アプリ)/AdSense(Web) を後から差す。
+  function interleaveAds(list) {
+    if (!CONFIG.ADS_ENABLED) return list;
+    var n = Math.max(2, parseInt(CONFIG.AD_INTERVAL, 10) || 6);
+    var out = [];
+    for (var i = 0; i < list.length; i++) {
+      out.push(list[i]);
+      if ((i + 1) % n === 0) out.push({ __ad: true, id: "ad_" + (i + 1) });
+    }
+    return out;
+  }
 
   var users = [];
   var index = 0;
@@ -192,6 +207,7 @@
   // ---------- 初期化 ----------
   function init() {
     users = (window.MOCK_USERS || []).filter(function (u) { return !isBlocked(u.id); });
+    users = interleaveAds(users);
     index = 0;
     matches = [];
     coachShown = false;
@@ -378,6 +394,20 @@
     card.className = "card" + (isTop ? " enter" : "");
     card.dataset.id = user.id;
 
+    // 広告カード（枠のみ。AdMob/AdSense をここに差し込む想定）
+    if (user.__ad) {
+      card.className += " ad-card";
+      card.innerHTML =
+        '<div class="card-media ad-media" data-ad-slot="swipe">' +
+          '<span class="ad-badge">広告</span>' +
+          '<div class="ad-inner">' +
+            '<svg viewBox="0 0 24 24" width="34" height="34" aria-hidden="true" class="ico-line"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg>' +
+            '<p class="ad-note">スポンサー</p>' +
+          "</div>" +
+        "</div>";
+      return card;
+    }
+
     // メインは登録した動画（無ければ画像にフォールバック）
     var media = user.video
       ? '<video class="card-video" src="' + esc(user.video) + '" ' +
@@ -423,6 +453,7 @@
       var ratio = Math.min(Math.abs(dx) / SWIPE_THRESHOLD, 1);
       card.style.setProperty("--tint", ratio.toFixed(3));
       card.dataset.dir = dx >= 0 ? "yes" : "no";
+      if (!yesStamp || !noStamp) return; // 広告カードはスタンプ無し
       if (dx > 0) { yesStamp.style.opacity = ratio; noStamp.style.opacity = 0; }
       else { noStamp.style.opacity = ratio; yesStamp.style.opacity = 0; }
     }
@@ -435,7 +466,8 @@
       else {
         card.style.transform = "";
         card.style.setProperty("--tint", "0");
-        yesStamp.style.opacity = 0; noStamp.style.opacity = 0;
+        if (yesStamp) yesStamp.style.opacity = 0;
+        if (noStamp) noStamp.style.opacity = 0;
       }
       dx = 0; dy = 0;
     }
@@ -644,7 +676,7 @@
     document.getElementById("yesBtn").onclick = function () { swipeTop("yes"); };
     document.getElementById("noBtn").onclick = function () { swipeTop("no"); };
     document.getElementById("infoBtn").onclick = function () {
-      if (index < users.length) openViewer(users[index]);
+      if (index < users.length && !users[index].__ad) openViewer(users[index]);
     };
     document.getElementById("resetBtn").onclick = init;
 
