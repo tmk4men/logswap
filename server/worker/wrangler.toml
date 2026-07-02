@@ -1,0 +1,27 @@
+# LogSwap メディア Worker（Cloudflare）
+# デプロイ: このフォルダで `npx wrangler deploy`
+# 事前に: R2 バケット作成 → JWT シークレット登録 → PUBLIC_BASE 設定
+
+name = "logswap-media"
+main = "src/index.js"
+compatibility_date = "2024-11-01"
+
+# R2 バケットのバインド（バケット名は自分のものに合わせる）
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "logswap-media"
+
+[vars]
+# R2 公開URLのベース。カスタムドメイン推奨（例 https://media.example.com）。
+# とりあえず試すだけなら R2 の r2.dev 公開URL でも可。
+PUBLIC_BASE = "https://media.example.com"
+# 本番はアプリのオリジンに絞る（例 "https://tmk4men.github.io"）。開発中は "*"。
+ALLOWED_ORIGIN = "*"
+
+# 秘密情報はコマンドで登録（wrangler.toml には書かない）:
+#   npx wrangler secret put SUPABASE_JWT_SECRET
+# 値は Supabase → Project Settings → API → JWT Settings → JWT Secret
+#
+# 前提: Supabase 標準の HS256（共有シークレット）署名を検証する実装。
+# もし Supabase の非対称JWT署名鍵(ES256/RS256)に切り替えた場合は、
+# src/index.js の verifyJwtHS256 を JWKS 検証に差し替える必要がある。

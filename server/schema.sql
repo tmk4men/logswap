@@ -22,8 +22,8 @@ create table if not exists public.profiles (
   name        text not null check (char_length(name) between 1 and 20),
   pref        text,                        -- 都道府県
   tags        text[] not null default '{}',
-  image_path  text,                        -- storage: media バケット内のパス
-  video_path  text,                        -- 圧縮済み動画のパス（1人1本）
+  image_path  text,                        -- R2 の公開URL（Cloudflare Worker が返す）
+  video_path  text,                        -- 圧縮済み動画のR2公開URL（1人1本）
   video_name  text,
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
