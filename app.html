@@ -32,7 +32,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700&family=M+PLUS+Rounded+1c:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=20260701c" />
+  <link rel="stylesheet" href="css/style.css?v=20260702a" />
 </head>
 <body class="app-page">
   <div class="app-shell">
@@ -150,9 +150,15 @@
           </label>
           <p class="pf-err" id="pf-video-err" role="alert" hidden></p>
           <p class="pf-hint">動画は1人につき1つ、長さは3秒までです。わいせつ・暴力・違法・他者を傷つける内容の投稿は禁止です。</p>
+          <p class="pf-hint pf-vsize" id="pf-video-size" hidden></p>
         </div>
 
         <div class="pf-field pf-consent">
+          <label class="pf-check">
+            <input type="checkbox" id="pf-age" />
+            <span>私は13歳以上です。</span>
+          </label>
+          <p class="pf-err" id="pf-age-err" role="alert" hidden>13歳以上の方のみ利用できます。</p>
           <label class="pf-check">
             <input type="checkbox" id="pf-agree" />
             <span><button type="button" class="pf-link" id="openTermsBtn">利用規約</button>と<button type="button" class="pf-link" id="openPolicyBtn">プライバシーポリシー</button>に同意します。不適切なコンテンツ・迷惑行為は禁止で、違反者は利用できなくなります。</span>
@@ -188,6 +194,7 @@
       <h2 class="view-title">プロフィール</h2>
       <div class="profile-summary" id="profileSummary"></div>
       <button class="btn-ghost" id="editProfileBtn" type="button">編集する</button>
+      <button class="btn-danger-link" id="deleteAccountBtn" type="button">アカウントを削除</button>
     </section>
 
     <!-- 下部タブ -->
@@ -315,6 +322,18 @@
     </div>
   </div>
 
+  <!-- アカウント削除の確認 -->
+  <div class="overlay" id="deleteOverlay" hidden>
+    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="deleteTitle">
+      <h2 class="policy-title" id="deleteTitle">アカウントを削除しますか？</h2>
+      <p class="report-sub">プロフィール・画像・動画・成立した相手などのデータがすべて消去され、元に戻せません。よろしいですか？</p>
+      <div class="dialog-actions">
+        <button class="btn-danger" id="deleteConfirm" type="button">削除する</button>
+        <button class="btn-ghost" id="deleteCancel" type="button">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 利用規約 -->
   <div class="overlay" id="termsOverlay" hidden>
     <div class="dialog policy-dialog" role="dialog" aria-modal="true" aria-labelledby="termsTitle">
@@ -346,7 +365,7 @@
     </div>
   </div>
 
-  <script src="js/data.js?v=20260701c"></script>
-  <script src="js/app.js?v=20260701c"></script>
+  <script src="js/data.js?v=20260702a"></script>
+  <script src="js/app.js?v=20260702a"></script>
 </body>
 </html>

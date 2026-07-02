@@ -537,6 +537,23 @@ a { color: inherit; text-decoration: none; }
 .ps-tags { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 4px; }
 .ps-note { margin-top: 8px; font-size: 12.5px; color: var(--muted); }
 .view-profile .btn-ghost { width: 100%; margin-top: 18px; }
+#view-profile .btn-ghost { width: 100%; margin-top: 18px; }
+
+/* アカウント削除（控えめな危険操作リンク＋確認ダイアログ内の実行ボタン） */
+.btn-danger-link {
+  display: block; width: 100%; margin-top: 14px;
+  background: none; border: none; cursor: pointer;
+  font-family: inherit; font-size: 13px; color: var(--muted);
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.btn-danger-link:hover { color: #c8362b; }
+.btn-danger {
+  background: #c8362b; color: #fff; border: 1px solid #c8362b;
+  border-radius: 999px; padding: 12px 20px;
+  font-family: inherit; font-weight: 700; font-size: 15px; cursor: pointer;
+}
+.btn-danger:hover { background: #b02e24; border-color: #b02e24; }
+.pf-vsize { color: var(--ink-2); }
 
 /* ---------------- 初回プロフィール入力 ---------------- */
 .profile-setup {

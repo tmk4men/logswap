@@ -74,6 +74,76 @@
   var pendingImage = null;     // ダウンスケール済み画像 dataURL
   var pendingVideoName = "";   // 動画ファイル名（実体の保存はバックエンド前提）
   var pendingVideoUrl = null;  // セッション内プレビュー用 objectURL
+  var pendingVideoBlob = null; // 圧縮後の動画データ（バックエンド接続時にアップロードする本体）
+
+  // 動画をアップロード前に端末内で低画質・低ビットレートへ再エンコードする。
+  // 保存料も配信の転送量も両方減らせる（＝サーバー運用費を安くする一番効く手）。
+  // MediaRecorder 非対応環境では null を返し、呼び出し側が原本にフォールバックする。
+  function compressVideo(file, opts, cb) {
+    opts = opts || {};
+    var maxDim = opts.maxDim || 640;       // 長辺の上限（px）。少しだけ低画質にする。
+    var bitrate = opts.bitrate || 900000;  // 目標ビットレート（bps）
+    var fps = opts.fps || 24;
+
+    var canRecord = typeof MediaRecorder !== "undefined" &&
+      HTMLCanvasElement.prototype.captureStream;
+    if (!canRecord) { cb(null); return; }
+
+    var mime = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm", "video/mp4"]
+      .filter(function (m) { try { return MediaRecorder.isTypeSupported(m); } catch (e) { return false; } })[0];
+    if (!mime) { cb(null); return; }
+
+    var url = URL.createObjectURL(file);
+    var v = document.createElement("video");
+    v.muted = true; v.playsInline = true; v.preload = "auto"; v.src = url;
+
+    var done = false;
+    function finish(blob) { if (done) return; done = true; try { URL.revokeObjectURL(url); } catch (e) {} cb(blob); }
+    // 保険：処理が固まっても放置しない（3秒動画なので余裕をみて8秒）
+    var guard = setTimeout(function () { finish(null); }, 8000);
+
+    v.onloadedmetadata = function () {
+      var scale = Math.min(1, maxDim / Math.max(v.videoWidth || 1, v.videoHeight || 1));
+      var w = Math.max(2, Math.round((v.videoWidth || maxDim) * scale / 2) * 2);
+      var h = Math.max(2, Math.round((v.videoHeight || maxDim) * scale / 2) * 2);
+      var canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      var ctx = canvas.getContext("2d");
+
+      var stream = canvas.captureStream(fps);
+      var rec;
+      try { rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: bitrate }); }
+      catch (e) { clearTimeout(guard); finish(null); return; }
+
+      var chunks = [];
+      rec.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
+      rec.onstop = function () { clearTimeout(guard); finish(new Blob(chunks, { type: mime })); };
+
+      var drawing = true;
+      function draw() {
+        if (!drawing) return;
+        try { ctx.drawImage(v, 0, 0, w, h); } catch (e) {}
+        if (!v.ended) requestAnimationFrame(draw);
+      }
+      v.onended = function () { drawing = false; try { rec.stop(); } catch (e) {} };
+      try { rec.start(); } catch (e) { clearTimeout(guard); finish(null); return; }
+      var p = v.play();
+      draw();
+      if (p && p.catch) p.catch(function () { drawing = false; try { rec.stop(); } catch (e) {} clearTimeout(guard); finish(null); });
+    };
+    v.onerror = function () { clearTimeout(guard); finish(null); };
+  }
+
+  // 動画サイズの表示（圧縮の効きを見せる。安く運用できる手応え）
+  function showVideoSize(bytes, compressed) {
+    var el = document.getElementById("pf-video-size");
+    if (!el) return;
+    if (!bytes) { el.hidden = true; return; }
+    var kb = bytes / 1024;
+    var size = kb >= 1024 ? (kb / 1024).toFixed(1) + "MB" : Math.round(kb) + "KB";
+    el.textContent = compressed ? "圧縮後の動画サイズ：約" + size : "動画サイズ：約" + size;
+    el.hidden = false;
+  }
 
   // 画像を端末内で縮小して dataURL 化（localStorage に収めるため）
   function downscaleImage(file, maxSize, cb) {
@@ -244,10 +314,36 @@
     });
     setUploadState("pf-image", p.image ? "画像を変更" : "画像を選ぶ", !!p.image);
     setUploadState("pf-video", p.videoName ? "動画を変更" : "動画を選ぶ", !!p.videoName);
-    // 既存プロフィールの編集時は同意済みとして扱う
+    // 既存プロフィールの編集時は同意・年齢確認済みとして扱う
     var agree = document.getElementById("pf-agree"); if (agree) agree.checked = true;
     var agreeErr = document.getElementById("pf-agree-err"); if (agreeErr) agreeErr.hidden = true;
+    var age = document.getElementById("pf-age"); if (age) age.checked = true;
+    var ageErr = document.getElementById("pf-age-err"); if (ageErr) ageErr.hidden = true;
     setAppGated(true);
+  }
+
+  // アカウント削除：端末内のデータを全消去して初回状態へ戻す。
+  // （バックエンド接続時は、ここでサーバー側の退会APIも呼ぶ。ストア審査の必須要件）
+  function deleteAccount() {
+    try {
+      localStorage.removeItem(PROFILE_KEY);
+      localStorage.removeItem(BLOCK_KEY);
+      localStorage.removeItem(REPORT_KEY);
+    } catch (e) {}
+    pendingImage = null;
+    pendingVideoName = "";
+    pendingVideoBlob = null;
+    if (pendingVideoUrl) { try { URL.revokeObjectURL(pendingVideoUrl); } catch (e) {} pendingVideoUrl = null; }
+    // 入力フォームを白紙化して初回入力ゲートへ
+    var f = document.getElementById("profileSetup");
+    if (f && f.reset) f.reset();
+    Array.prototype.forEach.call(document.querySelectorAll("#pf-tags .pf-chip.is-on"), function (c) {
+      c.classList.remove("is-on"); c.setAttribute("aria-pressed", "false");
+    });
+    setUploadState("pf-image", "画像を選ぶ", false);
+    setUploadState("pf-video", "動画を選ぶ", false);
+    showVideoSize(0);
+    init();
   }
 
   // 先頭2枚だけ描画して、スタック感を出す。
@@ -388,7 +484,7 @@
   // ---------- オーバーレイ開閉＋フォーカス管理（a11y） ----------
   var lastFocused = null;
   // 手前（最前面）から順に。フォーカストラップ・背景クリック・Escで使う
-  var OVERLAY_IDS = ["blockOverlay", "reportOverlay", "policyOverlay", "termsOverlay",
+  var OVERLAY_IDS = ["deleteOverlay", "blockOverlay", "reportOverlay", "policyOverlay", "termsOverlay",
     "previewOverlay", "logViewer", "matchOverlay"];
 
   function focusables(el) {
@@ -574,6 +670,8 @@
         if (verr) verr.hidden = true;
         if (pendingVideoUrl) { try { URL.revokeObjectURL(pendingVideoUrl); } catch (e) {} pendingVideoUrl = null; }
         pendingVideoName = "";
+        pendingVideoBlob = null;
+        showVideoSize(0);
         if (!f) { setUploadState("pf-video", "動画を選ぶ", false); updatePreview(); return; }
         // 長さ3秒までを検査（メタデータだけ読む）
         var probeUrl = URL.createObjectURL(f);
@@ -590,9 +688,17 @@
             return;
           }
           pendingVideoName = f.name;
-          pendingVideoUrl = URL.createObjectURL(f);
-          setUploadState("pf-video", "動画を変更", true);
-          updatePreview();
+          // 長さOK → 低画質・低ビットレートに圧縮してからプレビュー・保存に使う
+          setUploadState("pf-video", "動画を処理中…", true);
+          compressVideo(f, { maxDim: 640, bitrate: 900000 }, function (blob) {
+            // 圧縮できて実際に軽くなった時だけ採用。ダメなら原本にフォールバック。
+            var use = (blob && blob.size > 0 && blob.size < f.size) ? blob : f;
+            pendingVideoBlob = use;
+            pendingVideoUrl = URL.createObjectURL(use);
+            showVideoSize(use.size, use !== f);
+            setUploadState("pf-video", "動画を変更", true);
+            updatePreview();
+          });
         };
         probe.onerror = function () {
           try { URL.revokeObjectURL(probeUrl); } catch (e) {}
@@ -655,6 +761,14 @@
         }
         if (err) err.hidden = true;
         nameEl.removeAttribute("aria-invalid");
+        var age = document.getElementById("pf-age");
+        var ageErr = document.getElementById("pf-age-err");
+        if (age && !age.checked) {
+          if (ageErr) ageErr.hidden = false;
+          setFocus(age);
+          return;
+        }
+        if (ageErr) ageErr.hidden = true;
         var agree = document.getElementById("pf-agree");
         var agreeErr = document.getElementById("pf-agree-err");
         if (agree && !agree.checked) {
@@ -691,6 +805,20 @@
     });
     var editBtn = document.getElementById("editProfileBtn");
     if (editBtn) editBtn.addEventListener("click", openProfileEdit);
+
+    // アカウント削除（確認ダイアログを挟む）
+    var delBtn = document.getElementById("deleteAccountBtn");
+    var delOv = document.getElementById("deleteOverlay");
+    if (delBtn && delOv) {
+      delBtn.addEventListener("click", function () { openOverlay(delOv); });
+      var delCancel = document.getElementById("deleteCancel");
+      if (delCancel) delCancel.addEventListener("click", function () { closeOverlay(delOv); });
+      var delConfirm = document.getElementById("deleteConfirm");
+      if (delConfirm) delConfirm.addEventListener("click", function () {
+        closeOverlay(delOv);
+        deleteAccount();
+      });
+    }
     document.getElementById("closeViewer").onclick = function () {
       closeOverlay(document.getElementById("logViewer"));
     };
