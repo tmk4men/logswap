@@ -1705,6 +1705,11 @@
     if (locked) locked.hidden = sub;
     if (body) body.style.display = sub ? "" : "none";
     if (apply) apply.hidden = !sub;
+    var subBtn = document.getElementById("filterSubscribe");
+    if (subBtn) {
+      subBtn.hidden = sub; // 非会員のときだけ「プレミアムに加入」を出す
+      subBtn.textContent = t("プレミアムに加入（") + (CONFIG.PRICE_SUB_MONTH || "") + t("／月）");
+    }
     if (sub) {
       var s = getState();
       var g = document.getElementById("filt-gender"); if (g) g.value = s.fltGender || "";
@@ -1741,6 +1746,10 @@
     var filterCancel = document.getElementById("filterCancel");
     if (filterCancel) filterCancel.addEventListener("click", function () {
       closeOverlay(document.getElementById("filterOverlay"));
+    });
+    var filterSubscribe = document.getElementById("filterSubscribe");
+    if (filterSubscribe) filterSubscribe.addEventListener("click", function () {
+      Purchases.buy("sub_month", function () { setSub(true, "month"); openFilterDialog(); }); // 加入後はそのまま絞り込める
     });
     document.getElementById("yesBtn").onclick = function () { swipeTop("yes"); };
     document.getElementById("noBtn").onclick = function () { swipeTop("no"); };
