@@ -12,7 +12,7 @@
  */
 window.MOCK_USERS = [
   {
-    id: "u_aoi", name: "あおい", handle: "@aoi_log",
+    id: "u_aoi", name: "あおい", handle: "@aoi_log", gender: "female",
     vibe: "朝活とカフェ巡り",
     bio: "平日の朝がいちばん好き。淡いトーンのログを撮ってます。",
     photo: "logswap-aoi-morning",
@@ -29,7 +29,7 @@ window.MOCK_USERS = [
     ]
   },
   {
-    id: "u_haru", name: "はる", handle: "@haru_days",
+    id: "u_haru", name: "はる", handle: "@haru_days", gender: "male",
     vibe: "音楽とレコ屋",
     bio: "ディグった日のログが多め。おすすめ交換しよ。",
     photo: "logswap-haru-records",
@@ -46,7 +46,7 @@ window.MOCK_USERS = [
     ]
   },
   {
-    id: "u_rin", name: "りん", handle: "@rin_camera",
+    id: "u_rin", name: "りん", handle: "@rin_camera", gender: "female",
     vibe: "写真と散歩",
     bio: "気になった景色をひたすら撮る人。無加工派です。",
     photo: "logswap-rin-street",
@@ -63,7 +63,7 @@ window.MOCK_USERS = [
     ]
   },
   {
-    id: "u_sora", name: "そら", handle: "@sora_gym",
+    id: "u_sora", name: "そら", handle: "@sora_gym", gender: "male",
     vibe: "筋トレと自炊",
     bio: "整える系の一日。レシピ交換したいです。",
     photo: "logswap-sora-gym",
@@ -80,7 +80,7 @@ window.MOCK_USERS = [
     ]
   },
   {
-    id: "u_nagi", name: "なぎ", handle: "@nagi_book",
+    id: "u_nagi", name: "なぎ", handle: "@nagi_book", gender: "female",
     vibe: "読書と喫茶店",
     bio: "静かな一日のログばかり。栞がわりに交換しませんか。",
     photo: "logswap-nagi-cafe",
@@ -97,7 +97,7 @@ window.MOCK_USERS = [
     ]
   },
   {
-    id: "u_kai", name: "かい", handle: "@kai_trip",
+    id: "u_kai", name: "かい", handle: "@kai_trip", gender: "male",
     vibe: "旅と地図",
     bio: "週末はだいたいどこかにいます。移動のログ多め。",
     photo: "logswap-kai-travel",
@@ -114,7 +114,7 @@ window.MOCK_USERS = [
     ]
   },
   {
-    id: "u_mio", name: "みお", handle: "@mio_cook",
+    id: "u_mio", name: "みお", handle: "@mio_cook", gender: "female",
     vibe: "おやつと手づくり",
     bio: "甘いものを作った日のログ。レシピ交換歓迎です。",
     photo: "logswap-mio-bake",
@@ -131,7 +131,7 @@ window.MOCK_USERS = [
     ]
   },
   {
-    id: "u_yuki", name: "ゆき", handle: "@yuki_night",
+    id: "u_yuki", name: "ゆき", handle: "@yuki_night", gender: "male",
     vibe: "夜更かしと作業",
     bio: "夜型の一日。深夜のログが中心です。",
     photo: "logswap-yuki-night",

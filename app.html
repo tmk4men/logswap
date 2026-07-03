@@ -32,7 +32,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700&family=M+PLUS+Rounded+1c:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=20260702b" />
+  <link rel="stylesheet" href="css/style.css?v=20260703a" />
 </head>
 <body class="app-page">
   <div class="app-shell">
@@ -77,6 +77,25 @@
           <label for="pf-name">名前</label>
           <input class="pf-input" id="pf-name" type="text" maxlength="20" autocomplete="name" placeholder="name" required />
           <p class="pf-err" id="pf-name-err" role="alert" hidden>名前を入力してください。</p>
+        </div>
+
+        <div class="pf-field">
+          <label for="pf-handle">ハンドルID</label>
+          <div class="pf-handle-wrap">
+            <span class="pf-handle-at">@</span>
+            <input class="pf-input pf-handle-input" id="pf-handle" type="text" maxlength="20" autocomplete="off"
+              inputmode="latin" placeholder="logswap_id" />
+          </div>
+          <p class="pf-hint">半角英数字と _ が使えます。アプリ内であなたを表す固有IDです。</p>
+          <p class="pf-err" id="pf-handle-err" role="alert" hidden></p>
+        </div>
+
+        <div class="pf-field">
+          <label for="pf-invites">Setlogの招待ID（複数可・1行に1つ）</label>
+          <textarea class="pf-input pf-textarea" id="pf-invites" rows="3" autocomplete="off"
+            placeholder="グループの招待IDを1行に1つ貼り付け"></textarea>
+          <p class="pf-hint">おたがい「交換する」を選んだときに、上から1つずつ相手へ渡されます。<strong>渡した招待IDは二度と送られません</strong>（使い回すと同じグループに複数人が入ってしまうため）。グループごとに用意してください。</p>
+          <p class="pf-hint" id="pf-invites-used" hidden></p>
         </div>
 
         <div class="pf-field">
@@ -186,6 +205,22 @@
     <!-- ログ・チャットタブ -->
     <section class="view view-pad" id="view-chat" hidden>
       <h2 class="view-title">ログ</h2>
+
+      <!-- 成立したがまだトークしていない相手（モザイクで上部に） -->
+      <div class="pending-wrap" id="pendingWrap" hidden>
+        <div class="pending-head">
+          <span>枠が空くまで待機中（時計＝残り時間）</span>
+          <span class="pending-count" id="pendingCount"></span>
+        </div>
+        <div class="pending-strip" id="pendingStrip"></div>
+      </div>
+
+      <!-- トーク枠のインジケータ -->
+      <div class="slot-bar" id="slotBar">
+        <span class="slot-text" id="slotText">トークできる人数 0/3</span>
+        <button class="slot-add" id="slotAddBtn" type="button">枠を増やす</button>
+      </div>
+
       <div class="chat-list" id="chatList"></div>
     </section>
 
@@ -194,6 +229,47 @@
       <h2 class="view-title">プロフィール</h2>
       <div class="profile-summary" id="profileSummary"></div>
       <button class="btn-ghost" id="editProfileBtn" type="button">編集する</button>
+
+      <!-- プレミアム（課金デモ） -->
+      <div class="premium-card" id="premiumCard">
+        <div class="premium-head">
+          <span class="premium-badge">LogSwap プレミアム</span>
+          <span class="premium-state" id="premiumState">未加入</span>
+        </div>
+        <ul class="premium-list">
+          <li>トークできる人数が無制限</li>
+          <li>スワイプが無制限</li>
+          <li>相手の条件でしぼり込み</li>
+        </ul>
+        <button class="btn-primary sm" id="subToggleBtn" type="button">加入する（デモ）</button>
+
+        <div class="premium-filter" id="premiumFilter" hidden>
+          <p class="premium-sub">条件でしぼり込み（プレミアム）</p>
+          <div class="pf-field">
+            <label for="flt-gender">性別</label>
+            <div class="pf-select-wrap">
+              <select class="pf-input" id="flt-gender">
+                <option value="">こだわらない</option>
+                <option value="female">女性</option>
+                <option value="male">男性</option>
+              </select>
+            </div>
+          </div>
+          <div class="pf-field">
+            <label for="flt-pref">地域</label>
+            <div class="pf-select-wrap">
+              <select class="pf-input" id="flt-pref"><option value="">こだわらない</option></select>
+            </div>
+          </div>
+        </div>
+
+        <button class="btn-ghost sm boost-btn" id="boostBtn" type="button">
+          <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" class="ico-line"><path d="M13 3L5 13h5l-1 8 8-11h-5z"/></svg>
+          マッチ率アップ（30分・デモ）
+        </button>
+        <p class="boost-note" id="boostNote" hidden></p>
+      </div>
+
       <button class="btn-danger-link" id="deleteAccountBtn" type="button">アカウントを削除</button>
     </section>
 
@@ -365,8 +441,72 @@
     </div>
   </div>
 
-  <script src="js/config.js?v=20260702b"></script>
-  <script src="js/data.js?v=20260702b"></script>
-  <script src="js/app.js?v=20260702b"></script>
+  <!-- トーク画面（定型文＋スタンプのみ） -->
+  <div class="overlay" id="threadOverlay" hidden>
+    <div class="dialog thread-dialog" role="dialog" aria-modal="true" aria-labelledby="threadName">
+      <div class="thread-head">
+        <img class="thread-av" id="threadAv" alt="" />
+        <div class="thread-id">
+          <div class="thread-name" id="threadName"></div>
+          <div class="thread-handle" id="threadHandle"></div>
+        </div>
+        <button class="thread-close" id="threadClose" type="button" aria-label="閉じる">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" class="ico-line"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+
+      <div class="thread-log" id="threadLog" aria-live="polite"></div>
+
+      <!-- ID交換の合意エリア -->
+      <div class="idx-bar" id="idxBar" hidden></div>
+
+      <!-- 定型文＋スタンプ -->
+      <div class="thread-input">
+        <div class="thread-stamps" id="threadStamps">
+          <button class="stamp-btn" type="button" data-stamp="wave" aria-label="やあ">
+            <svg viewBox="0 0 24 24" width="24" height="24" class="ico-line"><path d="M6.5 12.5 6 11a1.4 1.4 0 0 1 2.5-1.2l.5.9M9 9.5 7.8 7a1.4 1.4 0 0 1 2.5-1.2l1.2 2.5M11.6 8.4l-.6-1.4a1.4 1.4 0 0 1 2.5-1.1l1.5 3.3M14.9 9.2a1.4 1.4 0 0 1 2.6-1l1 2.4c1.1 2.9-.4 6.1-3.3 7.2s-6-.3-7.1-3.1L7.5 12"/></svg>
+          </button>
+          <button class="stamp-btn" type="button" data-stamp="smile" aria-label="にっこり">
+            <svg viewBox="0 0 24 24" width="24" height="24" class="ico-line"><circle cx="12" cy="12" r="9"/><path d="M8.5 14c1 1.2 2.1 1.8 3.5 1.8s2.5-.6 3.5-1.8"/><path d="M9 9.5h.01M15 9.5h.01"/></svg>
+          </button>
+          <button class="stamp-btn" type="button" data-stamp="thumb" aria-label="いいね">
+            <svg viewBox="0 0 24 24" width="24" height="24" class="ico-line"><path d="M7 11v9H4v-9z"/><path d="M7 11l4-7c1.3 0 2 .9 2 2v3h4.6c1 0 1.8.9 1.6 1.9l-1.3 6c-.2.8-.9 1.1-1.6 1.1H7"/></svg>
+          </button>
+          <button class="stamp-btn" type="button" data-stamp="heart" aria-label="ハート">
+            <svg viewBox="0 0 24 24" width="24" height="24" class="ico-line"><path d="M12 20s-7-4.6-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.4-7 10-7 10z"/></svg>
+          </button>
+          <button class="stamp-btn" type="button" data-stamp="star" aria-label="スター">
+            <svg viewBox="0 0 24 24" width="24" height="24" class="ico-line"><path d="M12 3l2.5 5.3 5.7.8-4.1 4 1 5.6L12 16.4 6.9 18.7l1-5.6-4.1-4 5.7-.8z"/></svg>
+          </button>
+          <button class="stamp-btn" type="button" data-stamp="spark" aria-label="キラキラ">
+            <svg viewBox="0 0 24 24" width="24" height="24" class="ico-line"><path d="M12 3l1.7 5.1L19 10l-5.3 1.9L12 17l-1.7-5.1L5 10l5.3-1.9z"/></svg>
+          </button>
+        </div>
+        <div class="thread-phrases" id="threadPhrases">
+          <button class="phrase-btn" type="button">こんにちは！</button>
+          <button class="phrase-btn" type="button">ログ交換ありがとう！</button>
+          <button class="phrase-btn" type="button">よかったら一緒にどうですか？</button>
+          <button class="phrase-btn" type="button">趣味が合いそうですね</button>
+          <button class="phrase-btn" type="button">また今度！</button>
+        </div>
+      </div>
+
+      <button class="thread-unmatch" id="threadUnmatch" type="button">この人との交換を解除する</button>
+    </div>
+  </div>
+
+  <!-- 上限に達したとき（トーク枠／スワイプ） -->
+  <div class="overlay" id="limitOverlay" hidden>
+    <div class="dialog limit-dialog" role="dialog" aria-modal="true" aria-labelledby="limitTitle">
+      <h2 class="policy-title" id="limitTitle">上限に達しました</h2>
+      <p class="report-sub" id="limitSub"></p>
+      <div class="limit-actions" id="limitActions"></div>
+      <button class="btn-ghost" id="limitCancel" type="button">閉じる</button>
+    </div>
+  </div>
+
+  <script src="js/config.js?v=20260703a"></script>
+  <script src="js/data.js?v=20260703a"></script>
+  <script src="js/app.js?v=20260703a"></script>
 </body>
 </html>

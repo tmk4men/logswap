@@ -80,10 +80,156 @@
     if (!user) return;
     blockId(user.id);
     matches = matches.filter(function (m) { return m.id !== user.id; });
+    delete convos[user.id];
     if (users[index] && users[index].id === user.id) index++; // 表示中のカードなら次へ送る
     render();
     renderChat();
     updateTabIndicators();
+  }
+
+  // ---------- 禁止ワード（個人情報の誘導・過度に性的な表現）----------
+  // 定型文＋スタンプ制なのでメッセージ本文は安全側。名前・ハンドルIDに適用する。
+  // 交換用ID（shareId）は「連絡先を渡すための欄」なので、ここでは検査しない。
+  var BANNED_WORDS = [
+    "line", "ライン", "らいん", "カカオ", "kakao", "telegram", "テレグラム", "discord", "ディスコ",
+    "インスタ", "instagram", "twitter", "tiktok", "電話番号", "090", "080", "070", "@gmail", "@yahoo",
+    "セックス", "sex", "エッチ", "ワンナイト", "パパ活", "ママ活", "援交", "裏垢", "avトーク", "セフレ"
+  ];
+  function findBanned(text) {
+    if (!text) return "";
+    var t = String(text).toLowerCase().replace(/\s/g, "");
+    for (var i = 0; i < BANNED_WORDS.length; i++) {
+      if (t.indexOf(BANNED_WORDS[i].toLowerCase()) !== -1) return BANNED_WORDS[i];
+    }
+    return "";
+  }
+
+  // ---------- 利用状態（トーク枠・スワイプ枠・課金・ブースト）localStorage ----------
+  var STATE_KEY = "logswap_state";
+  function today() {
+    var d = new Date();
+    return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate();
+  }
+  function getState() {
+    try { return JSON.parse(localStorage.getItem(STATE_KEY) || "{}") || {}; }
+    catch (e) { return {}; }
+  }
+  function saveState(s) { try { localStorage.setItem(STATE_KEY, JSON.stringify(s)); } catch (e) {} }
+  function isSub() { return !!getState().sub; }
+
+  // 日付が変わっていたらスワイプ関連カウンタをリセット
+  function rollSwipeDay(s) {
+    if (s.swipeDate !== today()) {
+      s.swipeDate = today(); s.swipeUsed = 0; s.swipeAdCount = 0; s.swipeAdBonus = 0;
+      return true;
+    }
+    return false;
+  }
+  function swipesLeft() {
+    if (isSub()) return Infinity;
+    var s = getState();
+    if (rollSwipeDay(s)) saveState(s);
+    var cap = (CONFIG.SWIPE_LIMIT || 30) + (s.swipeAdBonus || 0);
+    return Math.max(0, cap - (s.swipeUsed || 0));
+  }
+  function useSwipe() {
+    if (isSub()) return;
+    var s = getState();
+    rollSwipeDay(s);
+    s.swipeUsed = (s.swipeUsed || 0) + 1;
+    saveState(s);
+  }
+  function swipeAdLeft() {
+    var s = getState();
+    if (rollSwipeDay(s)) saveState(s);
+    return Math.max(0, (CONFIG.SWIPE_AD_MAX || 3) - (s.swipeAdCount || 0));
+  }
+  function addSwipeAd() {
+    var s = getState();
+    rollSwipeDay(s);
+    if ((s.swipeAdCount || 0) >= (CONFIG.SWIPE_AD_MAX || 3)) return false;
+    s.swipeAdCount = (s.swipeAdCount || 0) + 1;
+    s.swipeAdBonus = (s.swipeAdBonus || 0) + (CONFIG.SWIPE_AD_ADD || 5);
+    saveState(s);
+    return true;
+  }
+
+  // トーク枠：無料はMSG_SLOTS_FREE、広告で一定時間だけ増える、サブスクで無制限
+  function msgSlotCap() {
+    if (isSub()) return Infinity;
+    var s = getState();
+    var cap = CONFIG.MSG_SLOTS_FREE || 3;
+    if (s.msgAdUntil && Date.now() < s.msgAdUntil) cap += (s.msgAdSlots || 0);
+    return cap;
+  }
+  function addMsgAd() {
+    var s = getState();
+    s.msgAdSlots = CONFIG.MSG_AD_SLOTS || 3;
+    s.msgAdUntil = Date.now() + (CONFIG.MSG_AD_HOURS || 24) * 3600 * 1000;
+    saveState(s);
+  }
+
+  // マッチ率アップ（課金アイテムのデモ）
+  function boostActive() { var s = getState(); return !!(s.boostUntil && Date.now() < s.boostUntil); }
+  function startBoost() {
+    var s = getState();
+    s.boostUntil = Date.now() + (CONFIG.BOOST_MINUTES || 30) * 60000;
+    saveState(s);
+  }
+
+  // Setlog招待IDのプール。1グループにつき1つ。交換で1つ消費し、使い切り（再送しない）。
+  // 形式: [{ code:"...", usedWith: 相手id|null }]。旧フィールド shareId は1件として移行。
+  function getInviteIds(p) {
+    p = p || getProfile() || {};
+    if (Array.isArray(p.inviteIds)) return p.inviteIds;
+    if (p.shareId) return [{ code: p.shareId, usedWith: p.shareIdUsedWith || null }];
+    return [];
+  }
+  function availableInviteCount() {
+    return getInviteIds().filter(function (x) { return !x.usedWith; }).length;
+  }
+
+  // ---------- 会話（成立相手ごと。定型文＋スタンプのみ・セッション内保持）----------
+  var convos = {}; // id -> { open, msgs:[{from,kind,body}], meAgreed, themAgreed, revealed, theirId }
+  function convo(id) {
+    if (!convos[id]) {
+      convos[id] = { open: false, msgs: [], meAgreed: false, themAgreed: false, revealed: false, theirId: "" };
+    }
+    return convos[id];
+  }
+  // いま何人とトークを開いているか（＝使っている枠数）
+  function openThreadCount() {
+    return matches.filter(function (m) { return convos[m.id] && convos[m.id].open; }).length;
+  }
+  // 空き枠があれば、待機中（モザイク）の相手を期限が近い順にトーク一覧へ繰り上げる。
+  // サブスク（無制限）なら全員をトーク一覧へ。
+  function fillSlots() {
+    var cap = msgSlotCap();
+    if (cap === Infinity) {
+      matches.forEach(function (m) { convo(m.id).open = true; });
+      return;
+    }
+    var waiting = matches.filter(function (m) { return !convo(m.id).open; })
+      .sort(function (a, b) { return (convo(a.id).matchedAt || 0) - (convo(b.id).matchedAt || 0); });
+    for (var i = 0; i < waiting.length && openThreadCount() < cap; i++) {
+      convo(waiting[i].id).open = true;
+    }
+  }
+  // 成立・未トーク（モザイク待機）のまま期限が過ぎた相手を消す。消えたら true。
+  function pruneExpiredPending() {
+    var ms = (CONFIG.PENDING_EXPIRE_HOURS || 72) * 3600 * 1000;
+    var now = Date.now();
+    var changed = false;
+    matches = matches.filter(function (m) {
+      var c = convos[m.id];
+      if (c && !c.open && c.matchedAt && (now - c.matchedAt) > ms) {
+        delete convos[m.id];
+        changed = true;
+        return false;
+      }
+      return true;
+    });
+    return changed;
   }
 
   var pendingImage = null;     // ダウンスケール済み画像 dataURL
@@ -204,12 +350,55 @@
     else { icon.removeAttribute("src"); icon.hidden = true; }
   }
 
-  // ---------- 初期化 ----------
-  function init() {
+  // 相手条件でしぼり込み（プレミアム時のみ有効）。state.fltGender / fltPref を使う。
+  function applyFilter(list) {
+    if (!isSub()) return list;
+    var s = getState();
+    return list.filter(function (u) {
+      if (u.__ad) return true;
+      if (s.fltGender && u.gender !== s.fltGender) return false;
+      if (s.fltPref && u.pref !== s.fltPref) return false;
+      return true;
+    });
+  }
+  // 性別の重み付け並べ替え：男性→65%で男、女性→55%で女が上に来やすくする。
+  function orderByGender(list, myGender) {
+    var pSame = myGender === "male" ? (CONFIG.SAME_GENDER_MALE || 0.65)
+      : myGender === "female" ? (CONFIG.SAME_GENDER_FEMALE || 0.55) : 0;
+    if (!pSame) return list;
+    return list.slice().map(function (u) {
+      var same = u.gender === myGender;
+      var w = same ? pSame : (1 - pSame);
+      return { u: u, k: Math.random() * (w + 0.0001) };
+    }).sort(function (a, b) { return b.k - a.k; }).map(function (x) { return x.u; });
+  }
+  // ブースト中は「交換が成立しやすい相手（likesBack）」を前に寄せる。
+  function orderByBoost(list) {
+    if (!boostActive()) return list;
+    return list.slice().sort(function (a, b) {
+      return (b.likesBack ? 1 : 0) - (a.likesBack ? 1 : 0);
+    });
+  }
+
+  // デッキ（スワイプ候補）を条件で組み直す。matches / convos は保持する。
+  function buildDeck() {
+    var prof = getProfile() || {};
     users = (window.MOCK_USERS || []).filter(function (u) { return !isBlocked(u.id); });
+    users = applyFilter(users);
+    users = orderByGender(users, prof.gender);
+    users = orderByBoost(users);
     users = interleaveAds(users);
     index = 0;
+  }
+  // フィルタ/ブースト/課金の変更時：デッキだけ組み直す（成立相手は消さない）
+  function rebuildDeck() { buildDeck(); render(); renderChat(); }
+
+  // ---------- 初期化 ----------
+  function init() {
+    buildDeck();
     matches = [];
+    convos = {};
+    threadUser = null;
     coachShown = false;
     // app.html では初回（プロフィール未登録）はプロフ入力から入る
     var gate = document.getElementById("profileSetup");
@@ -262,32 +451,317 @@
     if (name === "profile") renderProfile();
   }
 
-  // ---------- チャット（成立した相手を上に並べる）----------
+  // ---------- チャット（枠バー＋未トーク（モザイク）＋トーク中）----------
   function renderChat() {
     var list = document.getElementById("chatList");
     if (!list) return;
-    if (!matches.length) {
-      list.innerHTML = '<p class="chat-empty">ログを交換すると、ここに相手が表示されます。</p>';
+
+    pruneExpiredPending();           // 期限切れの待機相手を掃除
+    fillSlots();                     // 空き枠があれば繰り上げ
+
+    var pending = matches.filter(function (m) { return !(convos[m.id] && convos[m.id].open); });
+    var active = matches.filter(function (m) { return convos[m.id] && convos[m.id].open; });
+
+    // 枠バー
+    var cap = msgSlotCap();
+    var slotText = document.getElementById("slotText");
+    var slotAdd = document.getElementById("slotAddBtn");
+    if (slotText) {
+      slotText.textContent = "トークできる人数 " + openThreadCount() + "/" +
+        (cap === Infinity ? "∞" : cap);
+    }
+    if (slotAdd) slotAdd.hidden = (cap === Infinity);
+
+    // 未トーク（モザイクで上部に）
+    var pwrap = document.getElementById("pendingWrap");
+    var pstrip = document.getElementById("pendingStrip");
+    var pcount = document.getElementById("pendingCount");
+    if (pwrap && pstrip) {
+      if (!pending.length) { pwrap.hidden = true; pstrip.innerHTML = ""; }
+      else {
+        pwrap.hidden = false;
+        if (pcount) pcount.textContent = pending.length + "人";
+        var total = (CONFIG.PENDING_EXPIRE_HOURS || 48) * 3600 * 1000;
+        var now = Date.now();
+        // 期限が近い順（matchedAtが古い順）に並べる
+        var sorted = pending.slice().sort(function (a, b) {
+          return (convo(a.id).matchedAt || 0) - (convo(b.id).matchedAt || 0);
+        });
+        pstrip.innerHTML = sorted.map(function (u) {
+          var remain = total - (now - (convo(u.id).matchedAt || now));
+          var ratio = Math.max(0, Math.min(1, remain / total));
+          var color = ratio > 0.66 ? "green" : ratio > 0.33 ? "yellow" : "red";
+          var hrs = Math.max(0, Math.ceil(remain / 3600000));
+          return '<button class="pending-item" type="button" data-id="' + u.id + '" title="あと約' + hrs + '時間">' +
+            '<span class="pending-clock ' + color + '" aria-hidden="true">' +
+              '<svg viewBox="0 0 24 24" width="13" height="13" class="ico-line"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v4.7l3 1.8"/></svg>' +
+            "</span>" +
+            '<img class="pending-av" src="' + photoUrl(u.photo, 120, 120) + '" alt="" />' +
+            '<span class="pending-name">' + esc(u.name) + "</span></button>";
+        }).join("");
+        Array.prototype.forEach.call(pstrip.querySelectorAll(".pending-item"), function (b) {
+          b.onclick = function () {
+            var u = matches.filter(function (m) { return m.id === b.dataset.id; })[0];
+            if (u) openThread(u);
+          };
+        });
+      }
+    }
+
+    // トーク中
+    if (!active.length) {
+      list.innerHTML = pending.length
+        ? '<p class="chat-empty">上の相手をタップするとトークを始められます。</p>'
+        : '<p class="chat-empty">ログを交換すると、ここに相手が表示されます。</p>';
       return;
     }
-    list.innerHTML = matches.slice().reverse().map(function (u) {
+    list.innerHTML = active.slice().reverse().map(function (u) {
+      var c = convo(u.id);
+      var last = c.msgs.length ? c.msgs[c.msgs.length - 1] : null;
+      var lastText = last ? (last.kind === "stamp" ? stampSvg(last.body, 16) : esc(last.body)) : "トーク中";
       return '<button class="chat-row" type="button" data-id="' + u.id + '">' +
         '<img class="chat-av" src="' + photoUrl(u.photo, 96, 96) + '" alt="" />' +
-        '<span class="chat-meta"><span class="chat-name">' + esc(u.name) + "</span>" +
-        '<span class="chat-last">ログを交換しました</span></span>' +
+        '<span class="chat-meta"><span class="chat-name">' + esc(u.name) +
+        (c.revealed ? ' <span class="chat-idok">ID交換済</span>' : "") + "</span>" +
+        '<span class="chat-last">' + lastText + "</span></span>" +
         '<span class="chat-go" aria-hidden="true">›</span></button>';
     }).join("");
     Array.prototype.forEach.call(list.querySelectorAll(".chat-row"), function (row) {
       row.onclick = function () {
         var u = matches.filter(function (m) { return m.id === row.dataset.id; })[0];
-        if (u) openViewer(u);
+        if (u) openThread(u);
       };
     });
+  }
+
+  // ---------- スタンプ（絵文字は使わずSVGラインアイコン）----------
+  var STAMP_SVGS = {
+    wave: '<path d="M6.5 12.5 6 11a1.4 1.4 0 0 1 2.5-1.2l.5.9M9 9.5 7.8 7a1.4 1.4 0 0 1 2.5-1.2l1.2 2.5M11.6 8.4l-.6-1.4a1.4 1.4 0 0 1 2.5-1.1l1.5 3.3M14.9 9.2a1.4 1.4 0 0 1 2.6-1l1 2.4c1.1 2.9-.4 6.1-3.3 7.2s-6-.3-7.1-3.1L7.5 12"/>',
+    smile: '<circle cx="12" cy="12" r="9"/><path d="M8.5 14c1 1.2 2.1 1.8 3.5 1.8s2.5-.6 3.5-1.8"/><path d="M9 9.5h.01M15 9.5h.01"/>',
+    thumb: '<path d="M7 11v9H4v-9z"/><path d="M7 11l4-7c1.3 0 2 .9 2 2v3h4.6c1 0 1.8.9 1.6 1.9l-1.3 6c-.2.8-.9 1.1-1.6 1.1H7"/>',
+    heart: '<path d="M12 20s-7-4.6-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.4-7 10-7 10z"/>',
+    star: '<path d="M12 3l2.5 5.3 5.7.8-4.1 4 1 5.6L12 16.4 6.9 18.7l1-5.6-4.1-4 5.7-.8z"/>',
+    spark: '<path d="M12 3l1.7 5.1L19 10l-5.3 1.9L12 17l-1.7-5.1L5 10l5.3-1.9z"/>'
+  };
+  function stampSvg(id, size) {
+    var body = STAMP_SVGS[id] || STAMP_SVGS.smile;
+    return '<svg viewBox="0 0 24 24" width="' + size + '" height="' + size +
+      '" class="ico-line stamp-svg" aria-hidden="true">' + body + '</svg>';
+  }
+  // 小さな装飾SVG（鍵・稲妻）。絵文字の代替。
+  var KEY_SVG = '<svg viewBox="0 0 24 24" width="15" height="15" class="ico-line" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l8-8M17 4l2 2M15 6l1.5 1.5"/></svg>';
+  var BOLT_SVG = '<svg viewBox="0 0 24 24" width="14" height="14" class="ico-line" aria-hidden="true"><path d="M13 3L5 13h5l-1 8 8-11h-5z"/></svg>';
+
+  // ---------- トーク画面（定型文＋スタンプのみ）----------
+  var threadUser = null;
+  function openThread(user) {
+    var c = convo(user.id);
+    // まだ枠を使っていない相手なら、枠が空いているか確認してから開く
+    if (!c.open) {
+      if (openThreadCount() >= msgSlotCap()) { showSlotLimit(); return; }
+      c.open = true;
+    }
+    threadUser = user;
+    var av = document.getElementById("threadAv");
+    // メインアイコンは動画ではなくプロフィール画像（静止画）
+    if (av) av.src = photoUrl(user.photo, 160, 160);
+    var nm = document.getElementById("threadName");
+    if (nm) nm.textContent = user.name;
+    var hd = document.getElementById("threadHandle");
+    if (hd) hd.textContent = user.handle || "";
+    renderThread(user);
+    updateTabIndicators();
+    renderChat();
+    openOverlay(document.getElementById("threadOverlay"));
+  }
+
+  function renderThread(user) {
+    var c = convo(user.id);
+    var log = document.getElementById("threadLog");
+    if (log) {
+      if (!c.msgs.length) {
+        log.innerHTML = '<p class="thread-hint">定型文やスタンプであいさつしてみましょう。</p>';
+      } else {
+        log.innerHTML = c.msgs.map(function (m) {
+          var cls = "bubble " + (m.from === "me" ? "me" : "them") + (m.kind === "stamp" ? " is-stamp" : "");
+          return '<div class="' + cls + '">' + (m.kind === "stamp" ? stampSvg(m.body, 46) : esc(m.body)) + "</div>";
+        }).join("");
+      }
+      log.scrollTop = log.scrollHeight;
+    }
+    renderIdExchange(user);
+    // ID交換前に往復上限へ達したら、入力（定型文・スタンプ）を止める
+    var c2 = convo(user.id);
+    var myTurns = c2.msgs.filter(function (m) { return m.from === "me"; }).length;
+    setThreadInputCapped(!c2.revealed && myTurns >= (CONFIG.MSG_MAX_TURNS || 10));
+  }
+
+  // 往復上限に達したら入力欄を無効化（見た目も薄く）
+  function setThreadInputCapped(capped) {
+    var wrap = document.querySelector("#threadOverlay .thread-input");
+    if (!wrap) return;
+    wrap.classList.toggle("is-disabled", !!capped);
+    Array.prototype.forEach.call(wrap.querySelectorAll("button"), function (b) { b.disabled = !!capped; });
+  }
+
+  // ID交換の合意バー：一定の往復後に「交換する」ボタン→両者合意で使い切りID公開
+  function renderIdExchange(user) {
+    var bar = document.getElementById("idxBar");
+    if (!bar) return;
+    var c = convo(user.id);
+    var myTurns = c.msgs.filter(function (m) { return m.from === "me"; }).length;
+    var need = CONFIG.ID_EXCHANGE_MIN_TURNS || 3;
+
+    if (c.revealed) {
+      bar.hidden = false;
+      bar.className = "idx-bar revealed";
+      bar.innerHTML =
+        '<div class="idx-done">' + KEY_SVG + ' ID交換が成立しました</div>' +
+        '<div class="idx-pair"><span class="idx-label">相手のID</span><span class="idx-val">' + esc(c.theirId) + "</span></div>" +
+        '<div class="idx-pair"><span class="idx-label">渡した招待ID</span><span class="idx-val">' + esc(c.myGivenId || "") + "</span></div>";
+      return;
+    }
+    if (myTurns < need) {
+      bar.hidden = false;
+      bar.className = "idx-bar wait";
+      bar.innerHTML = '<span class="idx-wait">あと' + (need - myTurns) + '回やりとりすると、ID交換できます</span>';
+      return;
+    }
+    // 渡せる招待IDが尽きていたら交換させない（使い回し防止）
+    if (availableInviteCount() === 0) {
+      bar.hidden = false;
+      bar.className = "idx-bar wait";
+      bar.innerHTML = '<span class="idx-wait">渡せるSetlog招待IDがありません。プロフィールで追加してください。</span>';
+      return;
+    }
+    // need到達後は交換ボタンを表示。上限(MAX)に達したら往復を止め「交換 or 解除」に絞る。
+    var max = CONFIG.MSG_MAX_TURNS || 10;
+    var capped = myTurns >= max;
+    bar.hidden = false;
+    bar.className = "idx-bar ready" + (capped ? " capped" : "");
+    bar.innerHTML =
+      (capped ? '<span class="idx-cap idx-cap-strong">往復の上限です。IDを交換するか、解除してください。</span>' : "") +
+      '<div class="idx-btns">' +
+        '<button class="idx-btn" id="idxBtn" type="button">' + KEY_SVG + ' IDを交換する</button>' +
+        (capped ? '<button class="idx-unmatch" id="idxUnmatch" type="button">解除する</button>' : "") +
+      "</div>" +
+      (capped ? "" : '<span class="idx-cap">おたがい交換すると、設定した交換用IDが渡されます（あと' + (max - myTurns) + '往復）</span>');
+    var btn = document.getElementById("idxBtn");
+    if (btn) btn.onclick = function () { agreeIdExchange(user); };
+    var un = document.getElementById("idxUnmatch");
+    if (un) un.onclick = function () { unmatchThread(user); };
+  }
+
+  function agreeIdExchange(user) {
+    var c = convo(user.id);
+    // 未使用の招待IDを1つ確保（無ければ交換しない）
+    var prof = getProfile() || {};
+    var invites = getInviteIds(prof);
+    var slot = null;
+    for (var i = 0; i < invites.length; i++) { if (!invites[i].usedWith) { slot = invites[i]; break; } }
+    if (!slot) { renderThread(user); return; } // 渡せるIDが無い（renderで案内）
+    // この相手に紐づけて使い切りにする＝二度と送信されない
+    slot.usedWith = user.id;
+    prof.inviteIds = invites;
+    saveProfile(prof);
+    c.meAgreed = true;
+    c.themAgreed = true; // デモ：相手も同意した扱い
+    c.revealed = true;
+    c.myGivenId = slot.code;                 // この相手に渡した招待ID
+    c.theirId = "grp-" + String(user.handle || user.id).replace(/^@/, "");
+    c.msgs.push({ from: "them", kind: "text", body: "IDを交換しました！" });
+    renderThread(user);
+    renderChat();
+  }
+
+  function sendToThread(user, kind, body) {
+    var c = convo(user.id);
+    // ID交換前の往復上限に達していたら送らない（入力は無効化済みだが二重の保険）
+    var myTurns = c.msgs.filter(function (m) { return m.from === "me"; }).length;
+    if (!c.revealed && myTurns >= (CONFIG.MSG_MAX_TURNS || 10)) return;
+    c.msgs.push({ from: "me", kind: kind, body: body });
+    renderThread(user);
+    // 擬似返信（デモ。実運用では相手の実メッセージに置き換え）
+    setTimeout(function () {
+      if (threadUser !== user) return;
+      var stamps = ["smile", "thumb", "spark", "heart"];
+      var phrases = ["いいですね！", "こちらこそ！", "ありがとう！", "楽しみです"];
+      var useStamp = Math.random() < 0.5;
+      c.msgs.push(useStamp
+        ? { from: "them", kind: "stamp", body: stamps[Math.floor(Math.random() * stamps.length)] }
+        : { from: "them", kind: "text", body: phrases[Math.floor(Math.random() * phrases.length)] });
+      renderThread(user);
+      renderChat();
+    }, 650);
+  }
+
+  // 交換を解除（＝トーク枠が1つ空く）
+  function unmatchThread(user) {
+    matches = matches.filter(function (m) { return m.id !== user.id; });
+    delete convos[user.id];
+    threadUser = null;
+    closeOverlay(document.getElementById("threadOverlay"));
+    renderChat();
+    updateTabIndicators();
+  }
+
+  // ---------- 上限の案内（トーク枠／スワイプ枠）----------
+  function showLimit(opts) {
+    var ov = document.getElementById("limitOverlay");
+    if (!ov) return;
+    document.getElementById("limitTitle").textContent = opts.title;
+    document.getElementById("limitSub").textContent = opts.sub;
+    var box = document.getElementById("limitActions");
+    box.innerHTML = "";
+    opts.actions.forEach(function (a) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = a.primary ? "btn-primary" : "btn-ghost";
+      b.textContent = a.label;
+      if (a.disabled) { b.disabled = true; b.className = "btn-ghost"; }
+      else b.onclick = function () { closeOverlay(ov); a.onClick(); };
+      box.appendChild(b);
+    });
+    openOverlay(ov);
+  }
+  function showSwipeLimit() {
+    var canAd = swipeAdLeft() > 0;
+    showLimit({
+      title: "今日のスワイプは終わりです",
+      sub: canAd
+        ? "動画広告を見ると" + (CONFIG.SWIPE_AD_ADD || 5) + "回ぶん増やせます（今日あと" + swipeAdLeft() + "回）。プレミアムなら無制限です。"
+        : "今日はこれ以上増やせません。プレミアムなら無制限になります。",
+      actions: [
+        { label: "動画広告を見る（＋" + (CONFIG.SWIPE_AD_ADD || 5) + "）", primary: true, disabled: !canAd,
+          onClick: function () { if (addSwipeAd()) render(); } },
+        { label: "プレミアムに加入（デモ）", onClick: function () { subscribe(); } }
+      ]
+    });
+  }
+  function showSlotLimit() {
+    showLimit({
+      title: "トークできる人数の上限です",
+      sub: "動画広告で" + (CONFIG.MSG_AD_SLOTS || 3) + "枠を" + (CONFIG.MSG_AD_HOURS || 24) +
+        "時間ふやすか、誰かとの交換を解除すると空きます。プレミアムなら無制限です。",
+      actions: [
+        { label: "動画広告で" + (CONFIG.MSG_AD_SLOTS || 3) + "枠ふやす", primary: true,
+          onClick: function () { addMsgAd(); renderChat(); } },
+        { label: "プレミアムに加入（デモ）", onClick: function () { subscribe(); } }
+      ]
+    });
+  }
+
+  // 課金（デモ）：加入
+  function subscribe() {
+    var s = getState(); s.sub = true; saveState(s);
+    rebuildDeck(); renderProfile();
   }
   // タブのインジケータ：チャットの赤い点＋「いいねされた人数」の赤い数字
   function updateTabIndicators() {
     var dot = document.getElementById("chatDot");
-    if (dot) dot.hidden = matches.length === 0; // 成立したのに未対応の相手がいる印
+    // 成立したのにまだトークしていない相手がいる印
+    var pending = matches.filter(function (m) { return !(convos[m.id] && convos[m.id].open); }).length;
+    if (dot) dot.hidden = pending === 0;
     var lb = document.getElementById("likesBadge");
     if (lb) {
       var liked = users.filter(function (u) { return u.likesBack; }).length - matches.length;
@@ -311,14 +785,47 @@
       '<div class="ps-card">' +
         av +
         '<div class="ps-name">' + esc(p.name || "未設定") + "</div>" +
+        (p.handle ? '<div class="ps-handle">' + esc(p.handle) + "</div>" : "") +
         '<div class="ps-meta">' + (p.pref ? esc(p.pref) : "地域未設定") + "</div>" +
         (tags ? '<div class="ps-tags">' + tags + "</div>" : "") +
         '<div class="ps-note">ログの動画：' + (p.videoName ? "設定済み" : "未設定") + "</div>" +
       "</div>";
+    renderPremium();
+  }
+
+  // プレミアム欄（加入状態・しぼり込み・ブースト）を描画
+  function renderPremium() {
+    var state = document.getElementById("premiumState");
+    var toggle = document.getElementById("subToggleBtn");
+    var filter = document.getElementById("premiumFilter");
+    var sub = isSub();
+    if (state) { state.textContent = sub ? "加入中" : "未加入"; state.classList.toggle("on", sub); }
+    if (toggle) toggle.textContent = sub ? "解約する（デモ）" : "加入する（デモ）";
+    if (filter) filter.hidden = !sub;
+    var s = getState();
+    var fg = document.getElementById("flt-gender"); if (fg) fg.value = s.fltGender || "";
+    var fp = document.getElementById("flt-pref"); if (fp) fp.value = s.fltPref || "";
+    var note = document.getElementById("boostNote");
+    if (note) {
+      if (boostActive()) {
+        var mins = Math.max(1, Math.round((getState().boostUntil - Date.now()) / 60000));
+        note.hidden = false; note.innerHTML = BOLT_SVG + " マッチ率アップ中（あと約" + mins + "分）";
+      } else note.hidden = true;
+    }
   }
   function openProfileEdit() {
     var p = getProfile() || {};
     var n = document.getElementById("pf-name"); if (n) n.value = p.name || "";
+    var h = document.getElementById("pf-handle"); if (h) h.value = (p.handle || "").replace(/^@/, "");
+    var inv = document.getElementById("pf-invites");
+    if (inv) inv.value = getInviteIds(p).filter(function (x) { return !x.usedWith; })
+      .map(function (x) { return x.code; }).join("\n");
+    var usedNote = document.getElementById("pf-invites-used");
+    if (usedNote) {
+      var usedN = getInviteIds(p).filter(function (x) { return x.usedWith; }).length;
+      if (usedN) { usedNote.hidden = false; usedNote.textContent = "使用済みの招待ID：" + usedN + "件（交換で相手に渡し済み・再送されません）"; }
+      else usedNote.hidden = true;
+    }
     var pr = document.getElementById("pf-pref"); if (pr) pr.value = p.pref || "";
     var g = document.getElementById("pf-gender"); if (g) g.value = p.gender || "";
     pendingImage = p.image || null;
@@ -345,7 +852,10 @@
       localStorage.removeItem(PROFILE_KEY);
       localStorage.removeItem(BLOCK_KEY);
       localStorage.removeItem(REPORT_KEY);
+      localStorage.removeItem(STATE_KEY);
     } catch (e) {}
+    convos = {};
+    threadUser = null;
     pendingImage = null;
     pendingVideoName = "";
     pendingVideoBlob = null;
@@ -461,8 +971,8 @@
       if (!dragging) return;
       dragging = false;
       card.classList.remove("dragging");
-      if (dx > SWIPE_THRESHOLD) commit(card, user, "yes");
-      else if (dx < -SWIPE_THRESHOLD) commit(card, user, "no");
+      if (dx > SWIPE_THRESHOLD) attemptSwipe(card, user, "yes");
+      else if (dx < -SWIPE_THRESHOLD) attemptSwipe(card, user, "no");
       else {
         card.style.transform = "";
         card.style.setProperty("--tint", "0");
@@ -476,6 +986,23 @@
     card.addEventListener("pointermove", onMove);
     card.addEventListener("pointerup", onUp);
     card.addEventListener("pointercancel", onUp);
+  }
+
+  // スワイプを1回消費して確定する。上限に達していたら止めて案内を出す。
+  function attemptSwipe(card, user, choice) {
+    var real = user && !user.__ad; // 広告カードは枠を消費しない
+    if (real && swipesLeft() <= 0) {
+      // カードを元の位置へ戻す
+      card.style.transform = "";
+      card.style.setProperty("--tint", "0");
+      var y = card.querySelector(".stamp-yes"), n = card.querySelector(".stamp-no");
+      if (y) y.style.opacity = 0;
+      if (n) n.style.opacity = 0;
+      showSwipeLimit();
+      return;
+    }
+    if (real) useSwipe();
+    commit(card, user, choice);
   }
 
   // カードを画面外へ飛ばして次へ
@@ -498,7 +1025,7 @@
   function swipeTop(choice) {
     if (index >= users.length) return;
     var top = deckEl.querySelector('.card[data-id="' + users[index].id + '"]');
-    if (top) commit(top, users[index], choice);
+    if (top) attemptSwipe(top, users[index], choice);
   }
 
   // ---------- コーチ（最初のヒント）----------
@@ -516,8 +1043,8 @@
   // ---------- オーバーレイ開閉＋フォーカス管理（a11y） ----------
   var lastFocused = null;
   // 手前（最前面）から順に。フォーカストラップ・背景クリック・Escで使う
-  var OVERLAY_IDS = ["deleteOverlay", "blockOverlay", "reportOverlay", "policyOverlay", "termsOverlay",
-    "previewOverlay", "logViewer", "matchOverlay"];
+  var OVERLAY_IDS = ["limitOverlay", "deleteOverlay", "blockOverlay", "reportOverlay", "policyOverlay",
+    "termsOverlay", "previewOverlay", "logViewer", "threadOverlay", "matchOverlay"];
 
   function focusables(el) {
     return Array.prototype.filter.call(
@@ -551,6 +1078,9 @@
   function registerMatch(user) {
     if (matches.some(function (m) { return m.id === user.id; })) return;
     matches.push(user);
+    var c = convo(user.id);
+    if (!c.matchedAt) c.matchedAt = Date.now();
+    fillSlots(); // 枠が空いていれば自動でトーク一覧へ。無ければモザイクで待機。
     showMatch(user);
     renderChat();
     updateTabIndicators();
@@ -793,6 +1323,32 @@
         }
         if (err) err.hidden = true;
         nameEl.removeAttribute("aria-invalid");
+
+        // ハンドルID：半角英数字と _ のみ（任意。空なら名前などから自動採番）
+        var handleEl = document.getElementById("pf-handle");
+        var handleErr = document.getElementById("pf-handle-err");
+        var handle = (handleEl ? handleEl.value : "").trim().replace(/^@/, "");
+        if (handle && !/^[A-Za-z0-9_]{1,20}$/.test(handle)) {
+          if (handleErr) { handleErr.textContent = "ハンドルIDは半角英数字と _ のみ使えます。"; handleErr.hidden = false; }
+          setFocus(handleEl);
+          return;
+        }
+        // 名前・ハンドルの禁止ワード検査（連絡先誘導・過度に性的な表現）
+        var badName = findBanned(name);
+        if (badName) {
+          if (err) { err.textContent = "名前に使えない語が含まれています（" + badName + "）。"; err.hidden = false; }
+          setFocus(nameEl);
+          return;
+        }
+        var badHandle = findBanned(handle);
+        if (badHandle) {
+          if (handleErr) { handleErr.textContent = "ハンドルIDに使えない語が含まれています（" + badHandle + "）。"; handleErr.hidden = false; }
+          setFocus(handleEl);
+          return;
+        }
+        if (handleErr) handleErr.hidden = true;
+        if (!handle) handle = "user" + String(Math.floor(Math.random() * 1e6)); // 空なら自動採番
+
         var age = document.getElementById("pf-age");
         var ageErr = document.getElementById("pf-age-err");
         if (age && !age.checked) {
@@ -813,8 +1369,26 @@
           document.querySelectorAll("#pf-tags .pf-chip.is-on"),
           function (c) { return c.dataset.tag; }
         );
+        var prevProf = getProfile() || {};
+        // 招待IDプールを再構築：使用済みは必ず保持（＝再送しない）、入力欄は未使用ぶんとして扱う
+        var prevInvites = getInviteIds(prevProf);
+        var usedEntries = prevInvites.filter(function (x) { return x.usedWith; });
+        var usedCodes = {};
+        usedEntries.forEach(function (x) { usedCodes[x.code] = 1; });
+        var lines = ((document.getElementById("pf-invites") || {}).value || "")
+          .split(/\r?\n/).map(function (s) { return s.trim(); }).filter(Boolean);
+        var seen = {};
+        var unusedEntries = [];
+        lines.forEach(function (code) {
+          if (usedCodes[code] || seen[code]) return; // 使用済み・重複は追加しない
+          seen[code] = 1;
+          unusedEntries.push({ code: code, usedWith: null });
+        });
+        var inviteIds = usedEntries.concat(unusedEntries);
         saveProfile({
           name: name,
+          handle: "@" + handle,
+          inviteIds: inviteIds,
           pref: document.getElementById("pf-pref").value,
           gender: document.getElementById("pf-gender").value,
           tags: tags,
@@ -837,6 +1411,66 @@
     });
     var editBtn = document.getElementById("editProfileBtn");
     if (editBtn) editBtn.addEventListener("click", openProfileEdit);
+
+    // ── トーク枠を増やす（チャットタブの枠バー）
+    var slotAdd = document.getElementById("slotAddBtn");
+    if (slotAdd) slotAdd.addEventListener("click", showSlotLimit);
+
+    // ── トーク画面：閉じる・スタンプ・定型文・解除
+    var threadClose = document.getElementById("threadClose");
+    if (threadClose) threadClose.addEventListener("click", function () {
+      closeOverlay(document.getElementById("threadOverlay"));
+      threadUser = null;
+    });
+    var stampsBox = document.getElementById("threadStamps");
+    if (stampsBox) stampsBox.addEventListener("click", function (e) {
+      var b = e.target.closest(".stamp-btn");
+      if (b && threadUser) sendToThread(threadUser, "stamp", b.dataset.stamp);
+    });
+    var phrasesBox = document.getElementById("threadPhrases");
+    if (phrasesBox) phrasesBox.addEventListener("click", function (e) {
+      var b = e.target.closest(".phrase-btn");
+      if (b && threadUser) sendToThread(threadUser, "text", b.textContent);
+    });
+    var threadUnmatchBtn = document.getElementById("threadUnmatch");
+    if (threadUnmatchBtn) threadUnmatchBtn.addEventListener("click", function () {
+      if (threadUser) unmatchThread(threadUser);
+    });
+
+    // ── 上限オーバーレイの閉じる
+    var limitCancel = document.getElementById("limitCancel");
+    if (limitCancel) limitCancel.addEventListener("click", function () {
+      closeOverlay(document.getElementById("limitOverlay"));
+    });
+
+    // ── プレミアム（加入・解約／しぼり込み／ブースト）
+    var subToggle = document.getElementById("subToggleBtn");
+    if (subToggle) subToggle.addEventListener("click", function () {
+      var s = getState(); s.sub = !s.sub; saveState(s);
+      rebuildDeck(); renderProfile();
+    });
+    var fltGender = document.getElementById("flt-gender");
+    if (fltGender) fltGender.addEventListener("change", function () {
+      var s = getState(); s.fltGender = fltGender.value; saveState(s); rebuildDeck();
+    });
+    var fltPref = document.getElementById("flt-pref");
+    if (fltPref) {
+      // 地域の選択肢をプロフ入力のものから複製
+      var src = document.getElementById("pf-pref");
+      if (src) Array.prototype.forEach.call(src.querySelectorAll("option"), function (o) {
+        if (!o.value) return;
+        var opt = document.createElement("option");
+        opt.value = o.value; opt.textContent = o.textContent;
+        fltPref.appendChild(opt);
+      });
+      fltPref.addEventListener("change", function () {
+        var s = getState(); s.fltPref = fltPref.value; saveState(s); rebuildDeck();
+      });
+    }
+    var boostBtn = document.getElementById("boostBtn");
+    if (boostBtn) boostBtn.addEventListener("click", function () {
+      startBoost(); rebuildDeck(); renderPremium();
+    });
 
     // アカウント削除（確認ダイアログを挟む）
     var delBtn = document.getElementById("deleteAccountBtn");
@@ -922,4 +1556,11 @@
   bindControls();
   init();
   setupReveal();
+
+  // 待機（モザイク）相手の残り時間の色更新＆期限切れ掃除を定期実行
+  setInterval(function () {
+    if (pruneExpiredPending()) updateTabIndicators();
+    var chat = document.getElementById("view-chat");
+    if (chat && !chat.hidden) renderChat();
+  }, 60000);
 })();
