@@ -16,6 +16,11 @@
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var CONFIG = window.LOGSWAP_CONFIG || {};
 
+  // 広告・課金レイヤ（ads.js / purchases.js）。未読込でも動くフォールバック付き。
+  var Ads = window.LogSwapAds || { showRewarded: function (cb) { if (cb) cb(); } };
+  var Purchases = window.LogSwapPurchases ||
+    { buy: function (k, ok) { if (ok) ok(); }, restore: function (d) { if (d) d([]); } };
+
   // スワイプ内広告：実カード AD_INTERVAL 枚ごとに広告カードを1枚差し込む。
   // 既定は無効（config.js の ADS_ENABLED）。有効時のみ配列に __ad マーカーを挿入。
   // 広告カードは「枠」だけ。実際の広告は AdMob(アプリ)/AdSense(Web) を後から差す。
@@ -740,9 +745,9 @@
         : "今日はこれ以上増やせません。プレミアムなら無制限になります。",
       actions: [
         { label: "動画広告を見る（＋" + (CONFIG.SWIPE_AD_ADD || 5) + "・無料）", primary: true, disabled: !canAd,
-          onClick: function () { if (addSwipeAd()) render(); } },
+          onClick: function () { Ads.showRewarded(function () { if (addSwipeAd()) render(); }); } },
         { label: "スワイプ＋" + (CONFIG.SWIPE_AD_ADD || 5) + "を" + (CONFIG.PRICE_SWIPE || "") + "で",
-          onClick: function () { addSwipePaid(); render(); } },
+          onClick: function () { Purchases.buy("swipe", function () { addSwipePaid(); render(); }); } },
         { label: "プレミアムに加入（" + (CONFIG.PRICE_SUB_MONTH || "") + "／月）", onClick: function () { subscribe(); } }
       ]
     });
@@ -754,18 +759,20 @@
         "時間ふやすか、誰かとの交換を解除すると空きます。プレミアムなら無制限です。",
       actions: [
         { label: "動画広告で" + (CONFIG.MSG_AD_SLOTS || 3) + "枠ふやす（無料）", primary: true,
-          onClick: function () { addMsgAd(); renderChat(); } },
+          onClick: function () { Ads.showRewarded(function () { addMsgAd(); renderChat(); }); } },
         { label: (CONFIG.MSG_AD_SLOTS || 3) + "枠を" + (CONFIG.PRICE_MSG_SLOTS || "") + "で",
-          onClick: function () { addMsgAd(); renderChat(); } },
+          onClick: function () { Purchases.buy("msg_slots", function () { addMsgAd(); renderChat(); }); } },
         { label: "プレミアムに加入（" + (CONFIG.PRICE_SUB_MONTH || "") + "／月）", onClick: function () { subscribe(); } }
       ]
     });
   }
 
-  // 課金（デモ）：加入（上限案内から。既定は月額プラン扱い）
+  // 課金：加入（上限案内から。既定は月額プラン扱い）。購入はIAPレイヤ経由。
   function subscribe() {
-    var s = getState(); s.sub = true; if (!s.subPlan) s.subPlan = "month"; saveState(s);
-    rebuildDeck(); renderProfile();
+    Purchases.buy("sub_month", function () {
+      var s = getState(); s.sub = true; if (!s.subPlan) s.subPlan = "month"; saveState(s);
+      rebuildDeck(); renderProfile();
+    });
   }
   // タブのインジケータ：チャットの赤い点＋「いいねされた人数」の赤い数字
   function updateTabIndicators() {
@@ -1473,11 +1480,22 @@
       rebuildDeck(); renderProfile();
     }
     var subMonth = document.getElementById("subMonthBtn");
-    if (subMonth) subMonth.addEventListener("click", function () { setSub(true, "month"); });
+    if (subMonth) subMonth.addEventListener("click", function () {
+      Purchases.buy("sub_month", function () { setSub(true, "month"); });
+    });
     var subYear = document.getElementById("subYearBtn");
-    if (subYear) subYear.addEventListener("click", function () { setSub(true, "year"); });
+    if (subYear) subYear.addEventListener("click", function () {
+      Purchases.buy("sub_year", function () { setSub(true, "year"); });
+    });
     var subCancel = document.getElementById("subCancelBtn");
     if (subCancel) subCancel.addEventListener("click", function () { setSub(false); });
+    var restoreBtn = document.getElementById("restoreBtn");
+    if (restoreBtn) restoreBtn.addEventListener("click", function () {
+      Purchases.restore(function (list) {
+        // 実運用：復元された購入に応じて課金状態を戻す。デモは対象なし。
+        if (list && list.length) { var s = getState(); s.sub = true; saveState(s); rebuildDeck(); renderProfile(); }
+      });
+    });
     var fltGender = document.getElementById("flt-gender");
     if (fltGender) fltGender.addEventListener("change", function () {
       var s = getState(); s.fltGender = fltGender.value; saveState(s); rebuildDeck();
@@ -1498,7 +1516,7 @@
     }
     var boostBtn = document.getElementById("boostBtn");
     if (boostBtn) boostBtn.addEventListener("click", function () {
-      startBoost(); rebuildDeck(); renderPremium();
+      Purchases.buy("boost", function () { startBoost(); rebuildDeck(); renderPremium(); });
     });
 
     // アカウント削除（確認ダイアログを挟む）

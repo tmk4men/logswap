@@ -38,7 +38,29 @@
     PRICE_SUB_YEAR: "¥4,800",  // プレミアム年額
     PRICE_BOOST: "¥250",       // マッチ率アップ30分（単発）
     PRICE_MSG_SLOTS: "¥120",   // トーク枠追加（単発）
-    PRICE_SWIPE: "¥120"        // スワイプ+5（単発）
+    PRICE_SWIPE: "¥120",       // スワイプ+5（単発）
+
+    // ── 課金（IAP）── 既定OFF＝デモ（購入は即成功扱い）。
+    // 本番化：Capacitorの課金プラグインを入れて IAP_ENABLED:true、
+    // 各 productId を App Store Connect / Google Play で作成して合わせる。
+    IAP_ENABLED: false,
+    IAP_PRODUCTS: {
+      sub_month: "logswap_premium_month",
+      sub_year: "logswap_premium_year",
+      boost: "logswap_boost_30m",
+      msg_slots: "logswap_talkslots_3",
+      swipe: "logswap_swipe_5"
+    },
+
+    // ── リワード動画広告（AdMob）── 既定OFF＝デモ（見なくても即報酬）。
+    // 本番化：@capacitor-community/admob を入れて AD_REWARDED_ENABLED:true、
+    // 広告ユニットIDを自分のものへ（既定はGoogleのテストID）。
+    AD_REWARDED_ENABLED: false,
+    ADMOB: {
+      appId: "",
+      rewarded: "ca-app-pub-3940256099942544/5224354917", // Googleテスト用
+      banner: "ca-app-pub-3940256099942544/6300978111"     // Googleテスト用
+    }
   };
   var override = {};
   try { override = JSON.parse(localStorage.getItem("logswap_config") || "{}") || {}; } catch (e) {}
