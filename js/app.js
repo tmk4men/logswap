@@ -414,12 +414,32 @@
   function orderByGender(list, myGender) {
     var pSame = myGender === "male" ? (CONFIG.SAME_GENDER_MALE || 0.65)
       : myGender === "female" ? (CONFIG.SAME_GENDER_FEMALE || 0.55) : 0;
-    if (!pSame) return list;
+    // その他・回答しない・未選択 → 男女を半々で交互に見せる
+    if (!pSame) return interleaveByGender(list);
     return list.slice().map(function (u) {
       var same = u.gender === myGender;
       var w = same ? pSame : (1 - pSame);
       return { u: u, k: Math.random() * (w + 0.0001) };
     }).sort(function (a, b) { return b.k - a.k; }).map(function (x) { return x.u; });
+  }
+  // 男女を交互に並べ、スワイプ欄に半々で出す（その他・回答しない のユーザー向け）。
+  function interleaveByGender(list) {
+    function shuf(a) {
+      return a.map(function (u) { return { u: u, k: Math.random() }; })
+        .sort(function (x, y) { return x.k - y.k; }).map(function (x) { return x.u; });
+    }
+    var males = shuf(list.filter(function (u) { return u.gender === "male"; }));
+    var females = shuf(list.filter(function (u) { return u.gender === "female"; }));
+    var rest = shuf(list.filter(function (u) { return u.gender !== "male" && u.gender !== "female"; }));
+    var out = [];
+    var n = Math.max(males.length, females.length);
+    for (var i = 0; i < n; i++) {
+      // どちらを先に出すかは毎回ランダム（先頭の偏りをなくす）
+      var pair = Math.random() < 0.5 ? [males[i], females[i]] : [females[i], males[i]];
+      if (pair[0]) out.push(pair[0]);
+      if (pair[1]) out.push(pair[1]);
+    }
+    return out.concat(rest);
   }
   // ブースト中は「交換が成立しやすい相手（likesBack）」を前に寄せる。
   function orderByBoost(list) {
@@ -664,7 +684,8 @@
       return;
     }
     // 公開できる招待IDが尽きていたら、ここで1つ追加できる（プロフィールと共有）
-    if (availableInviteCount() === 0) {
+    // ただし、やりとりが1往復終わるまでは案内（警告）を出さない。
+    if (myTurns >= 1 && availableInviteCount() === 0) {
       bar.hidden = false;
       bar.className = "idx-bar addid";
       bar.innerHTML =
@@ -710,7 +731,7 @@
     var btn = document.getElementById("idxBtn");
     if (btn) btn.onclick = function () { requestIdExchange(user); };
     var un = document.getElementById("idxUnmatch");
-    if (un) un.onclick = function () { unmatchThread(user); };
+    if (un) un.onclick = function () { askUnmatch(user); };
   }
 
   // トークからSetlog招待IDを1つ追加（プロフィールの履歴と共有）。使用済みも保持。
@@ -775,6 +796,13 @@
     }, 650);
   }
 
+  // 交換の解除は「はい／いいえ」で確認してから実行する
+  var pendingUnmatch = null;
+  function askUnmatch(user) {
+    if (!user) return;
+    pendingUnmatch = user;
+    openOverlay(document.getElementById("unmatchOverlay"));
+  }
   // 交換を解除（＝トーク枠が1つ空く）
   function unmatchThread(user) {
     matches = matches.filter(function (m) { return m.id !== user.id; });
@@ -1069,8 +1097,11 @@
         '<span class="stamp stamp-yes">交換したい</span>' +
         '<span class="stamp stamp-no">見送り</span>' +
         '<div class="card-id">' +
-          '<img class="card-avatar" src="' + photoUrl(user.photo, 120, 120) + '" alt="" />' +
-          '<h3 class="card-name">' + esc(user.name) + "</h3>" +
+          '<div class="card-id-row">' +
+            '<img class="card-avatar" src="' + photoUrl(user.photo, 120, 120) + '" alt="" />' +
+            '<h3 class="card-name">' + esc(user.name) + "</h3>" +
+          "</div>" +
+          (user.bio ? '<p class="card-bio">' + esc(user.bio) + "</p>" : "") +
         "</div>" +
       "</div>";
 
@@ -1144,14 +1175,19 @@
   // カードを画面外へ飛ばして次へ
   function commit(card, user, choice) {
     var dir = choice === "yes" ? 1 : -1;
+    // 飛ばす向きのスタンプを出す（ボタン操作でも「選んだ」感と流れる余韻を出す）
+    var stamp = card.querySelector(choice === "yes" ? ".stamp-yes" : ".stamp-no");
+    if (stamp) stamp.style.opacity = 1;
+    card.dataset.dir = choice;
     card.classList.add("leaving");
     var fly = reduceMotion ? 0 : 1;
-    card.style.transform = "translate(" + (dir * 480 * fly) + "px," + (40 * fly) +
-      "px) rotate(" + (dir * 22 * fly) + "deg)";
+    card.style.transform = "translate(" + (dir * 520 * fly) + "px," + (60 * fly) +
+      "px) rotate(" + (dir * 24 * fly) + "deg)";
     card.style.opacity = "0";
 
     index++;
-    var delay = reduceMotion ? 0 : 300;
+    // 飛び切るアニメ（CSS 0.5s）を最後まで見せてから次のカードへ差し替える
+    var delay = reduceMotion ? 0 : 520;
     setTimeout(function () {
       render();
       if (choice === "yes" && user.likesBack) registerMatch(user);
@@ -1179,7 +1215,7 @@
   // ---------- オーバーレイ開閉＋フォーカス管理（a11y） ----------
   var lastFocused = null;
   // 手前（最前面）から順に。フォーカストラップ・背景クリック・Escで使う
-  var OVERLAY_IDS = ["limitOverlay", "deleteOverlay", "blockOverlay", "reportOverlay", "policyOverlay",
+  var OVERLAY_IDS = ["limitOverlay", "unmatchOverlay", "deleteOverlay", "blockOverlay", "reportOverlay", "policyOverlay",
     "termsOverlay", "previewOverlay", "logViewer", "threadOverlay", "matchOverlay"];
 
   function focusables(el) {
@@ -1625,7 +1661,22 @@
     });
     var threadUnmatchBtn = document.getElementById("threadUnmatch");
     if (threadUnmatchBtn) threadUnmatchBtn.addEventListener("click", function () {
-      if (threadUser) unmatchThread(threadUser);
+      if (threadUser) askUnmatch(threadUser);
+    });
+
+    // ── 交換の解除確認（はい／いいえ）
+    var unmatchOv = document.getElementById("unmatchOverlay");
+    var unmatchCancel = document.getElementById("unmatchCancel");
+    if (unmatchCancel) unmatchCancel.addEventListener("click", function () {
+      pendingUnmatch = null;
+      closeOverlay(unmatchOv);
+    });
+    var unmatchConfirm = document.getElementById("unmatchConfirm");
+    if (unmatchConfirm) unmatchConfirm.addEventListener("click", function () {
+      var target = pendingUnmatch;
+      pendingUnmatch = null;
+      closeOverlay(unmatchOv);
+      if (target) unmatchThread(target);
     });
 
     // ── 上限オーバーレイの閉じる

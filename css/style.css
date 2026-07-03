@@ -154,7 +154,7 @@ a { color: inherit; text-decoration: none; }
   transition: transform 0.35s var(--ease), opacity 0.35s var(--ease);
 }
 .card.dragging { transition: none; box-shadow: 0 4px 10px rgba(27, 26, 23, 0.08), 0 30px 60px rgba(27, 26, 23, 0.26); }
-.card.leaving { transition: transform 0.42s var(--ease), opacity 0.42s; }
+.card.leaving { transition: transform 0.5s cubic-bezier(0.33, 0, 0.2, 1), opacity 0.5s ease-out; }
 .card.is-back { transform: scale(0.94) translateY(16px); filter: brightness(0.985) saturate(0.97); }
 .card.enter { animation: promote 0.36s var(--ease); }
 @keyframes promote { 0% { transform: scale(0.95) translateY(12px); opacity: 0.5; } 100% { transform: none; opacity: 1; } }
@@ -196,14 +196,19 @@ a { color: inherit; text-decoration: none; }
 /* カード下部：丸いアイコン＋名前（Tinder風） */
 .card-id {
   position: absolute; left: 16px; right: 16px; bottom: 16px; z-index: 2;
-  display: flex; align-items: center; gap: 12px; color: #fff;
+  display: flex; flex-direction: column; gap: 8px; color: #fff;
   text-shadow: 0 1px 12px rgba(0, 0, 0, 0.38);
 }
+.card-id-row { display: flex; align-items: center; gap: 12px; }
 .card-avatar {
   width: 52px; height: 52px; border-radius: 50%; object-fit: cover; flex: 0 0 auto;
   border: 2.5px solid #fff; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
 }
 .card-name { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.01em; }
+.card-bio {
+  margin: 0; font-size: 13.5px; font-weight: 500; line-height: 1.45;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
 
 .tag {
   font-family: "Baloo 2", sans-serif; font-size: 11.5px; font-weight: 500;
@@ -770,6 +775,17 @@ a { color: inherit; text-decoration: none; }
   padding: 8px 15px; border-radius: 999px; cursor: pointer;
 }
 .chat-unlock:hover { background: color-mix(in srgb, var(--accent) 20%, var(--paper-2)); }
+
+/* プロフィールタブ：見出し行（プロフィール＋編集の鉛筆アイコン） */
+.profile-head { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+.profile-head .view-title { margin: 0; }
+.profile-edit-btn {
+  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; padding: 0; border: none; border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 12%, var(--paper-2));
+  color: var(--accent-ink); cursor: pointer;
+}
+.profile-edit-btn:hover { background: color-mix(in srgb, var(--accent) 20%, var(--paper-2)); }
 
 /* 成立・未トーク（モザイクで上部に） */
 .pending-wrap { margin-bottom: 14px; }
