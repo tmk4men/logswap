@@ -20,6 +20,9 @@
   var Backend = window.LogSwapBackend || { enabled: false };
   var BE = Backend.enabled;
 
+  // i18n（js/i18n.js）。t("日本語") で英語化。未読込ならそのまま日本語。
+  var t = (window.I18N && window.I18N.t) || function (s) { return s; };
+
   // 広告・課金レイヤ（ads.js / purchases.js）。未読込でも動くフォールバック付き。
   var Ads = window.LogSwapAds || { showRewarded: function (cb) { if (cb) cb(); } };
   var Purchases = window.LogSwapPurchases ||
@@ -769,18 +772,18 @@
     // トーク中
     if (!active.length) {
       list.innerHTML = pending.length
-        ? '<p class="chat-empty">上の相手をタップするとトークを始められます。</p>'
-        : '<p class="chat-empty">ログを交換すると、ここに相手が表示されます。</p>';
+        ? '<p class="chat-empty">' + t("上の相手をタップするとトークを始められます。") + "</p>"
+        : '<p class="chat-empty">' + t("ログを交換すると、ここに相手が表示されます。") + "</p>";
       return;
     }
     list.innerHTML = active.slice().reverse().map(function (u) {
       var c = convo(u.id);
       var last = c.msgs.length ? c.msgs[c.msgs.length - 1] : null;
-      var lastText = last ? (last.kind === "stamp" ? last.body : esc(last.body)) : "トーク中";
+      var lastText = last ? (last.kind === "stamp" ? last.body : esc(last.body)) : t("トーク中");
       return '<button class="chat-row" type="button" data-id="' + u.id + '">' +
         '<img class="chat-av" src="' + photoUrl(u.photo, 96, 96) + '" alt="" />' +
         '<span class="chat-meta"><span class="chat-name">' + esc(u.name) +
-        (c.revealed ? ' <span class="chat-idok">ID交換済</span>' : "") + "</span>" +
+        (c.revealed ? ' <span class="chat-idok">' + t("ID交換済") + "</span>" : "") + "</span>" +
         '<span class="chat-last">' + lastText + "</span></span>" +
         '<span class="chat-go" aria-hidden="true">›</span></button>';
     }).join("");
@@ -835,7 +838,7 @@
     var log = document.getElementById("threadLog");
     if (log) {
       if (!c.msgs.length) {
-        log.innerHTML = '<p class="thread-hint">定型文やスタンプであいさつしてみましょう。</p>';
+        log.innerHTML = '<p class="thread-hint">' + t("定型文やスタンプであいさつしてみましょう。") + "</p>";
       } else {
         log.innerHTML = c.msgs.map(function (m) {
           var cls = "bubble " + (m.from === "me" ? "me" : "them") + (m.kind === "stamp" ? " is-stamp" : "");
@@ -873,13 +876,13 @@
       bar.className = "idx-bar revealed";
       var html = "";
       if (c.revealed) html +=
-        '<div class="idx-done">' + KEY_SVG + ' IDを公開しました</div>' +
-        '<div class="idx-pair"><span class="idx-label">あなたの招待ID</span><span class="idx-val">' + esc(c.myGivenId || "") + "</span></div>";
+        '<div class="idx-done">' + KEY_SVG + t(" IDを公開しました") + "</div>" +
+        '<div class="idx-pair"><span class="idx-label">' + t("あなたの招待ID") + '</span><span class="idx-val">' + esc(c.myGivenId || "") + "</span></div>";
       if (c.theirId) html +=
-        '<div class="idx-pair"><span class="idx-label">相手の招待ID</span><span class="idx-val">' + esc(c.theirId) + "</span></div>";
+        '<div class="idx-pair"><span class="idx-label">' + t("相手の招待ID") + '</span><span class="idx-val">' + esc(c.theirId) + "</span></div>";
       // 相手からもらったが自分はまだ、のときは「自分も公開」ボタン
       if (BE && !c.revealed && c.theirId && availableInviteCount() > 0)
-        html += '<div class="idx-btns"><button class="idx-btn" id="idxBtn" type="button">' + KEY_SVG + ' 自分のIDも公開する</button></div>';
+        html += '<div class="idx-btns"><button class="idx-btn" id="idxBtn" type="button">' + KEY_SVG + " " + t("自分のIDも公開する") + "</button></div>";
       bar.innerHTML = html;
       var rb = document.getElementById("idxBtn");
       if (rb) rb.onclick = function () { confirmIdExchange(user); };
@@ -891,9 +894,9 @@
       bar.hidden = false;
       bar.className = "idx-bar addid";
       bar.innerHTML =
-        '<span class="idx-wait">公開できる招待IDがありません。ここで追加できます。</span>' +
-        '<div class="idx-add"><input class="idx-add-input" id="idxAddInput" type="text" autocomplete="off" placeholder="Setlogの招待ID" />' +
-        '<button class="idx-add-btn" id="idxAddBtn" type="button">追加</button></div>';
+        '<span class="idx-wait">' + t("公開できる招待IDがありません。ここで追加できます。") + "</span>" +
+        '<div class="idx-add"><input class="idx-add-input" id="idxAddInput" type="text" autocomplete="off" placeholder="' + t("Setlogの招待ID") + '" />' +
+        '<button class="idx-add-btn" id="idxAddBtn" type="button">' + t("追加") + "</button></div>";
       var addBtn = document.getElementById("idxAddBtn");
       var addIn = document.getElementById("idxAddInput");
       var doAdd = function () { if (addIn && addIn.value.trim()) addInviteFromThread(user, addIn.value); };
@@ -906,9 +909,9 @@
       bar.hidden = false;
       bar.className = "idx-bar ready";
       bar.innerHTML =
-        '<span class="idx-cap idx-cap-strong">' + esc(user.name) + ' さんも交換したがっています！</span>' +
-        '<div class="idx-btns"><button class="idx-btn" id="idxOkBtn" type="button">' + KEY_SVG + ' OK（IDを公開）</button></div>' +
-        '<span class="idx-cap">OKすると、あなたの招待IDが1つ相手へ渡されます</span>';
+        '<span class="idx-cap idx-cap-strong">' + esc(user.name) + t("さんも交換したがっています！") + "</span>" +
+        '<div class="idx-btns"><button class="idx-btn" id="idxOkBtn" type="button">' + KEY_SVG + t(" OK（IDを公開）") + "</button></div>" +
+        '<span class="idx-cap">' + t("OKすると、あなたの招待IDが1つ相手へ渡されます") + "</span>";
       var ok = document.getElementById("idxOkBtn");
       if (ok) ok.onclick = function () { confirmIdExchange(user); };
       return;
@@ -916,7 +919,7 @@
     if (myTurns < need) {
       bar.hidden = false;
       bar.className = "idx-bar wait";
-      bar.innerHTML = '<span class="idx-wait">あと' + (need - myTurns) + '回やりとりすると、ID交換できます</span>';
+      bar.innerHTML = '<span class="idx-wait">' + t("あと") + (need - myTurns) + t("回やりとりすると、ID交換できます") + "</span>";
       return;
     }
     // 「IDを交換しますか？」ボタン。上限(MAX)に達したら解除も出す。
@@ -925,10 +928,10 @@
     bar.hidden = false;
     bar.className = "idx-bar ready" + (capped ? " capped" : "");
     bar.innerHTML =
-      (capped ? '<span class="idx-cap idx-cap-strong">往復の上限です。交換するか、解除してください。</span>' : "") +
+      (capped ? '<span class="idx-cap idx-cap-strong">' + t("往復の上限です。交換するか、解除してください。") + "</span>" : "") +
       '<div class="idx-btns">' +
-        '<button class="idx-btn" id="idxBtn" type="button">' + KEY_SVG + ' IDを交換しますか？</button>' +
-        (capped ? '<button class="idx-unmatch" id="idxUnmatch" type="button">解除する</button>' : "") +
+        '<button class="idx-btn" id="idxBtn" type="button">' + KEY_SVG + t(" IDを交換しますか？") + "</button>" +
+        (capped ? '<button class="idx-unmatch" id="idxUnmatch" type="button">' + t("解除する") + "</button>" : "") +
       "</div>";
     var btn = document.getElementById("idxBtn");
     // バックエンドは相手の自動同意が無いので、押したら自分のIDを直接公開する
@@ -1119,7 +1122,7 @@
           onClick: function () { Ads.showRewarded(function () { if (addSwipeAd()) render(); }); } },
         { label: "スワイプ＋" + (CONFIG.SWIPE_AD_ADD || 5) + "を" + (CONFIG.PRICE_SWIPE || "") + "で",
           onClick: function () { Purchases.buy("swipe", function () { addSwipePaid(); render(); }); } },
-        { label: "プレミアムに加入（" + (CONFIG.PRICE_SUB_MONTH || "") + "／月）", onClick: function () { subscribe(); } }
+        { label: t("プレミアムに加入（") + (CONFIG.PRICE_SUB_MONTH || "") + t("／月）"), onClick: function () { subscribe(); } }
       ]
     });
   }
@@ -1134,7 +1137,7 @@
       actions: [
         { label: "動画広告で" + (CONFIG.MSG_AD_SLOTS || 3) + "枠ふやす（無料）", primary: true, disabled: !canAd,
           onClick: function () { Ads.showRewarded(function () { addMsgAd(); renderChat(); }); } },
-        { label: "プレミアムに加入（" + (CONFIG.PRICE_SUB_MONTH || "") + "／月）", onClick: function () { subscribe(); } }
+        { label: t("プレミアムに加入（") + (CONFIG.PRICE_SUB_MONTH || "") + t("／月）"), onClick: function () { subscribe(); } }
       ]
     });
   }
@@ -1180,13 +1183,13 @@
     box.innerHTML =
       '<div class="ps-card">' +
         av +
-        '<div class="ps-name">' + esc(p.name || "未設定") + "</div>" +
+        '<div class="ps-name">' + esc(p.name || t("未設定")) + "</div>" +
         (p.handle ? '<div class="ps-handle">' + esc(p.handle) + "</div>" : "") +
         (p.bio ? '<div class="ps-bio">' + esc(p.bio) + "</div>" : "") +
-        '<div class="ps-meta">' + (p.pref ? esc(p.pref) : "地域未設定") + "</div>" +
+        '<div class="ps-meta">' + (p.pref ? esc(p.pref) : t("地域未設定")) + "</div>" +
         (tags ? '<div class="ps-tags">' + tags + "</div>" : "") +
         (p.image2 ? '<img class="ps-sub" src="' + p.image2 + '" alt="サブ画像" />' : "") +
-        '<div class="ps-note">ログの動画：' + (p.videoName ? "設定済み" : "未設定") + "</div>" +
+        '<div class="ps-note">' + t("ログの動画：") + (p.videoName ? t("設定済み") : t("未設定")) + "</div>" +
       "</div>";
     renderPremium();
   }
@@ -1201,12 +1204,12 @@
     var sub = isSub();
     // 価格をconfigからボタンへ流し込む（月額のみ）
     var mBtn = document.getElementById("subMonthBtn");
-    if (mBtn) mBtn.textContent = "プレミアムに加入（" + (CONFIG.PRICE_SUB_MONTH || "") + "／月）";
+    if (mBtn) mBtn.textContent = t("プレミアムに加入（") + (CONFIG.PRICE_SUB_MONTH || "") + t("／月）");
     var boostLabel = document.getElementById("boostLabel");
-    if (boostLabel) boostLabel.textContent = "ブーストを買う（" + (CONFIG.PRICE_BOOST || "") + "）";
+    if (boostLabel) boostLabel.textContent = t("ブーストを買う（") + (CONFIG.PRICE_BOOST || "") + t("）");
 
     if (state) {
-      state.textContent = sub ? "加入中（月額）" : "未加入";
+      state.textContent = sub ? t("加入中（月額）") : t("未加入");
       state.classList.toggle("on", sub);
     }
     if (plans) plans.hidden = sub;   // 加入中はプラン選択を隠し、解約ボタンを出す
@@ -1554,7 +1557,7 @@
   function showMatch(user) {
     var overlay = document.getElementById("matchOverlay");
     document.getElementById("matchSub").textContent =
-      esc(user.name) + " さんとログを交換しました！";
+      esc(user.name) + t(" さんとログを交換しました！");
     var me = getProfile();
     var youAv = (me && me.image)
       ? '<img class="match-av" src="' + me.image + '" width="160" height="160" alt="あなた" />'
@@ -2040,6 +2043,15 @@
     var myAvatarBtn = document.getElementById("myAvatar");
     if (myAvatarBtn) myAvatarBtn.addEventListener("click", function () { showView("profile"); });
 
+    // 言語切替（日本語 ⇄ English）
+    var langToggle = document.getElementById("langToggle");
+    if (langToggle && window.I18N) {
+      langToggle.textContent = window.I18N.lang === "ja" ? "English" : "日本語";
+      langToggle.addEventListener("click", function () {
+        window.I18N.setLang(window.I18N.lang === "ja" ? "en" : "ja");
+      });
+    }
+
     // アカウント削除（確認ダイアログを挟む）
     var delBtn = document.getElementById("deleteAccountBtn");
     var delOv = document.getElementById("deleteOverlay");
@@ -2121,6 +2133,7 @@
     });
   }
 
+  if (window.I18N) window.I18N.applyStatic(); // 静的HTMLを言語に合わせて翻訳
   bindControls();
   init();
   setupReveal();

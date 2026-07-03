@@ -521,6 +521,15 @@ a { color: inherit; text-decoration: none; }
 .app-back:hover { background: var(--line); color: var(--ink); }
 .app-bar-spacer { width: 38px; flex: 0 0 auto; } /* app-back と対でブランドを中央寄せ */
 
+/* 言語切替（プロフィール下部） */
+.lang-row { text-align: center; margin-top: 12px; }
+.lang-toggle {
+  border: 1px solid var(--line); background: transparent; color: var(--ink-2);
+  font-family: inherit; font-size: 12.5px; font-weight: 700; padding: 7px 18px;
+  border-radius: 999px; cursor: pointer;
+}
+.lang-toggle:hover { border-color: var(--ink-2); color: var(--ink); }
+
 /* 自分のプロフィール画像（アプリバー右の丸アイコン） */
 .my-avatar {
   width: 36px; height: 36px; flex: 0 0 auto; padding: 0; border: none; cursor: pointer;
