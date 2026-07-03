@@ -32,7 +32,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700&family=M+PLUS+Rounded+1c:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=20260703a" />
+  <link rel="stylesheet" href="css/style.css?v=20260703b" />
 </head>
 <body class="app-page">
   <div class="app-shell">
@@ -241,7 +241,11 @@
           <li>スワイプが無制限</li>
           <li>相手の条件でしぼり込み</li>
         </ul>
-        <button class="btn-primary sm" id="subToggleBtn" type="button">加入する（デモ）</button>
+        <div class="premium-plans" id="premiumPlans">
+          <button class="btn-primary sm" id="subMonthBtn" type="button">月額プラン</button>
+          <button class="btn-ghost sm" id="subYearBtn" type="button">年額プラン</button>
+        </div>
+        <button class="btn-ghost sm" id="subCancelBtn" type="button" hidden>解約する（デモ）</button>
 
         <div class="premium-filter" id="premiumFilter" hidden>
           <p class="premium-sub">条件でしぼり込み（プレミアム）</p>
@@ -265,7 +269,7 @@
 
         <button class="btn-ghost sm boost-btn" id="boostBtn" type="button">
           <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" class="ico-line"><path d="M13 3L5 13h5l-1 8 8-11h-5z"/></svg>
-          マッチ率アップ（30分・デモ）
+          <span id="boostLabel">マッチ率アップ（30分）</span>
         </button>
         <p class="boost-note" id="boostNote" hidden></p>
       </div>
@@ -505,8 +509,8 @@
     </div>
   </div>
 
-  <script src="js/config.js?v=20260703a"></script>
-  <script src="js/data.js?v=20260703a"></script>
-  <script src="js/app.js?v=20260703a"></script>
+  <script src="js/config.js?v=20260703b"></script>
+  <script src="js/data.js?v=20260703b"></script>
+  <script src="js/app.js?v=20260703b"></script>
 </body>
 </html>

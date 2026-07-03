@@ -153,6 +153,13 @@
     saveState(s);
     return true;
   }
+  // 課金でスワイプ枠を追加（広告の1日上限に縛られない）
+  function addSwipePaid() {
+    var s = getState();
+    rollSwipeDay(s);
+    s.swipeAdBonus = (s.swipeAdBonus || 0) + (CONFIG.SWIPE_AD_ADD || 5);
+    saveState(s);
+  }
 
   // トーク枠：無料はMSG_SLOTS_FREE、広告で一定時間だけ増える、サブスクで無制限
   function msgSlotCap() {
@@ -732,9 +739,11 @@
         ? "動画広告を見ると" + (CONFIG.SWIPE_AD_ADD || 5) + "回ぶん増やせます（今日あと" + swipeAdLeft() + "回）。プレミアムなら無制限です。"
         : "今日はこれ以上増やせません。プレミアムなら無制限になります。",
       actions: [
-        { label: "動画広告を見る（＋" + (CONFIG.SWIPE_AD_ADD || 5) + "）", primary: true, disabled: !canAd,
+        { label: "動画広告を見る（＋" + (CONFIG.SWIPE_AD_ADD || 5) + "・無料）", primary: true, disabled: !canAd,
           onClick: function () { if (addSwipeAd()) render(); } },
-        { label: "プレミアムに加入（デモ）", onClick: function () { subscribe(); } }
+        { label: "スワイプ＋" + (CONFIG.SWIPE_AD_ADD || 5) + "を" + (CONFIG.PRICE_SWIPE || "") + "で",
+          onClick: function () { addSwipePaid(); render(); } },
+        { label: "プレミアムに加入（" + (CONFIG.PRICE_SUB_MONTH || "") + "／月）", onClick: function () { subscribe(); } }
       ]
     });
   }
@@ -744,16 +753,18 @@
       sub: "動画広告で" + (CONFIG.MSG_AD_SLOTS || 3) + "枠を" + (CONFIG.MSG_AD_HOURS || 24) +
         "時間ふやすか、誰かとの交換を解除すると空きます。プレミアムなら無制限です。",
       actions: [
-        { label: "動画広告で" + (CONFIG.MSG_AD_SLOTS || 3) + "枠ふやす", primary: true,
+        { label: "動画広告で" + (CONFIG.MSG_AD_SLOTS || 3) + "枠ふやす（無料）", primary: true,
           onClick: function () { addMsgAd(); renderChat(); } },
-        { label: "プレミアムに加入（デモ）", onClick: function () { subscribe(); } }
+        { label: (CONFIG.MSG_AD_SLOTS || 3) + "枠を" + (CONFIG.PRICE_MSG_SLOTS || "") + "で",
+          onClick: function () { addMsgAd(); renderChat(); } },
+        { label: "プレミアムに加入（" + (CONFIG.PRICE_SUB_MONTH || "") + "／月）", onClick: function () { subscribe(); } }
       ]
     });
   }
 
-  // 課金（デモ）：加入
+  // 課金（デモ）：加入（上限案内から。既定は月額プラン扱い）
   function subscribe() {
-    var s = getState(); s.sub = true; saveState(s);
+    var s = getState(); s.sub = true; if (!s.subPlan) s.subPlan = "month"; saveState(s);
     rebuildDeck(); renderProfile();
   }
   // タブのインジケータ：チャットの赤い点＋「いいねされた人数」の赤い数字
@@ -796,13 +807,26 @@
   // プレミアム欄（加入状態・しぼり込み・ブースト）を描画
   function renderPremium() {
     var state = document.getElementById("premiumState");
-    var toggle = document.getElementById("subToggleBtn");
+    var plans = document.getElementById("premiumPlans");
+    var cancel = document.getElementById("subCancelBtn");
     var filter = document.getElementById("premiumFilter");
-    var sub = isSub();
-    if (state) { state.textContent = sub ? "加入中" : "未加入"; state.classList.toggle("on", sub); }
-    if (toggle) toggle.textContent = sub ? "解約する（デモ）" : "加入する（デモ）";
-    if (filter) filter.hidden = !sub;
     var s = getState();
+    var sub = isSub();
+    // 価格をconfigからボタンへ流し込む
+    var mBtn = document.getElementById("subMonthBtn");
+    if (mBtn) mBtn.textContent = "月額プラン " + (CONFIG.PRICE_SUB_MONTH || "");
+    var yBtn = document.getElementById("subYearBtn");
+    if (yBtn) yBtn.textContent = "年額プラン " + (CONFIG.PRICE_SUB_YEAR || "");
+    var boostLabel = document.getElementById("boostLabel");
+    if (boostLabel) boostLabel.textContent = "マッチ率アップ（30分・" + (CONFIG.PRICE_BOOST || "") + "）";
+
+    if (state) {
+      state.textContent = sub ? ("加入中（" + (s.subPlan === "year" ? "年額" : "月額") + "）") : "未加入";
+      state.classList.toggle("on", sub);
+    }
+    if (plans) plans.hidden = sub;   // 加入中はプラン選択を隠し、解約ボタンを出す
+    if (cancel) cancel.hidden = !sub;
+    if (filter) filter.hidden = !sub;
     var fg = document.getElementById("flt-gender"); if (fg) fg.value = s.fltGender || "";
     var fp = document.getElementById("flt-pref"); if (fp) fp.value = s.fltPref || "";
     var note = document.getElementById("boostNote");
@@ -1444,11 +1468,16 @@
     });
 
     // ── プレミアム（加入・解約／しぼり込み／ブースト）
-    var subToggle = document.getElementById("subToggleBtn");
-    if (subToggle) subToggle.addEventListener("click", function () {
-      var s = getState(); s.sub = !s.sub; saveState(s);
+    function setSub(on, plan) {
+      var s = getState(); s.sub = on; if (on) s.subPlan = plan; saveState(s);
       rebuildDeck(); renderProfile();
-    });
+    }
+    var subMonth = document.getElementById("subMonthBtn");
+    if (subMonth) subMonth.addEventListener("click", function () { setSub(true, "month"); });
+    var subYear = document.getElementById("subYearBtn");
+    if (subYear) subYear.addEventListener("click", function () { setSub(true, "year"); });
+    var subCancel = document.getElementById("subCancelBtn");
+    if (subCancel) subCancel.addEventListener("click", function () { setSub(false); });
     var fltGender = document.getElementById("flt-gender");
     if (fltGender) fltGender.addEventListener("change", function () {
       var s = getState(); s.fltGender = fltGender.value; saveState(s); rebuildDeck();
