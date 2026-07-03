@@ -6,15 +6,16 @@
    ========================================================= */
 
 :root {
-  --paper: #e9e0f7;         /* 薄い紫（ラベンダー）。やや濃いめ */
+  --paper: #e9e0f7;         /* LP：薄い紫（ラベンダー） */
   --paper-2: #ffffff;
   --ink: #1e1a28;           /* 寒色寄りのニアブラック */
   --ink-2: #4a4658;
   --muted: #7e7a8e;
   --line: #ddd2ef;          /* ラベンダー寄りの境界線 */
-  --accent: #fb4a3e;        /* coral：ブランド＝「交換したい」 */
-  --accent-ink: #c5342a;
-  --ok: #2f9e74;            /* 成立サイン用 */
+  --accent: #ff3fa3;        /* マゼンタ：差し色＝「交換したい」（Setlog寄せ） */
+  --accent-ink: #d81f7f;    /* 明るい背景で読めるマゼンタ */
+  --brand: #12b39a;         /* ミント緑：ロゴ（明るい背景で読める濃さ） */
+  --ok: #12b39a;            /* 成立サイン＝ミント */
   --radius: 16px;
   --radius-lg: 22px;
   --shadow-sm: 0 1px 2px rgba(45, 38, 70, 0.07), 0 6px 16px rgba(45, 38, 70, 0.07);
@@ -24,6 +25,22 @@
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
   font-family: "M PLUS Rounded 1c", system-ui, "Hiragino Maru Gothic ProN", "Yu Gothic", sans-serif;
 }
+
+/* アプリ（app.html）はダークテーマ。LP(index.html)はライトのまま。 */
+.app-page {
+  --paper: #101016;         /* アプリ背景：ニアブラック */
+  --paper-2: #1c1c24;       /* カード・面 */
+  --ink: #f3f1ef;           /* 主要テキスト（ニアホワイト） */
+  --ink-2: #c3c0cc;
+  --muted: #8a8797;
+  --line: #2c2c37;          /* ダーク境界線 */
+  --accent-ink: #ff93d2;    /* 暗背景で映える明るいマゼンタ */
+  --brand: #40e0c9;         /* 暗背景で映える明るいミント */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35), 0 6px 16px rgba(0, 0, 0, 0.42);
+  --shadow-md: 0 12px 32px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 30px 70px rgba(0, 0, 0, 0.66);
+}
+html.app-html, html:has(.app-page) { background: #101016; }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
@@ -56,8 +73,8 @@ a { color: inherit; text-decoration: none; }
 .ico-solid { fill: currentColor; }
 
 /* ---------------- Brand ---------------- */
-.brand { display: inline-flex; align-items: center; gap: 8px; color: var(--ink); }
-.brand-glyph { color: var(--accent); fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.brand { display: inline-flex; align-items: center; gap: 8px; color: var(--brand); }
+.brand-glyph { color: var(--brand); fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .brand-word { font-family: "Baloo 2", sans-serif; font-weight: 700; font-size: 19px; letter-spacing: -0.01em; }
 
 /* ---------------- Nav ---------------- */
@@ -254,18 +271,18 @@ a { color: inherit; text-decoration: none; }
 .ctrl-cell { display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .ctrl {
   display: grid; place-items: center; cursor: pointer;
-  background: #fff; color: var(--ink); border: 2px solid var(--line); border-radius: 50%;
+  background: var(--paper-2); color: var(--ink); border: 2px solid var(--line); border-radius: 50%;
   box-shadow: 0 6px 16px rgba(27, 26, 23, 0.14);
   transition: transform 0.14s var(--ease), background 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
 .ctrl:hover { transform: translateY(-3px); box-shadow: 0 12px 24px rgba(27, 26, 23, 0.18); }
 .ctrl:active { transform: scale(0.9); }
 .ctrl-no { width: 62px; height: 62px; }
-.ctrl-no:hover { color: #fff; background: var(--ink); border-color: var(--ink); }
+.ctrl-no:hover { color: var(--ink); background: var(--line); border-color: var(--muted); }
 .ctrl-yes {
   width: 62px; height: 62px; color: var(--accent);
-  border-color: color-mix(in srgb, var(--accent) 32%, #fff);
-  background: color-mix(in srgb, var(--accent) 5%, #fff);
+  border-color: color-mix(in srgb, var(--accent) 32%, var(--paper-2));
+  background: color-mix(in srgb, var(--accent) 5%, var(--paper-2));
 }
 .ctrl-yes:hover { color: #fff; background: var(--accent); border-color: var(--accent); box-shadow: 0 12px 26px rgba(251, 74, 62, 0.4); }
 .ctrl-info { width: 48px; height: 48px; color: var(--ink-2); }
@@ -518,7 +535,7 @@ a { color: inherit; text-decoration: none; }
   position: absolute; top: 12px; right: 12px; z-index: 6;
   width: 46px; height: 46px; border-radius: 50%; border: none; cursor: pointer; padding: 0;
   display: inline-flex; align-items: center; justify-content: center;
-  background: #fff; box-shadow: 0 4px 14px rgba(27, 26, 23, 0.20);
+  background: var(--paper-2); box-shadow: 0 4px 14px rgba(27, 26, 23, 0.20);
 }
 .swipe-boost.is-active {
   box-shadow: 0 0 0 3px #f5b301, 0 6px 18px rgba(245, 179, 1, 0.5);
@@ -711,7 +728,7 @@ a { color: inherit; text-decoration: none; }
 /* 相手に表示されるプロフィールのプレビュー（動画を大きく＋左下に画像アイコン） */
 .pf-card-preview {
   position: relative; width: 200px; max-width: 100%; aspect-ratio: 3 / 4;
-  border-radius: 18px; overflow: hidden; background: var(--ink); box-shadow: var(--shadow-md);
+  border-radius: 18px; overflow: hidden; background: #14131a; box-shadow: var(--shadow-md);
 }
 .pf-pv-media { width: 100%; height: 100%; }
 .pf-pv-media video { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -831,7 +848,7 @@ a { color: inherit; text-decoration: none; }
 .pending-clock {
   position: absolute; top: -3px; left: -1px; z-index: 1;
   width: 22px; height: 22px; border-radius: 50%;
-  display: grid; place-items: center; background: #fff; box-shadow: var(--shadow-sm);
+  display: grid; place-items: center; background: var(--paper-2); box-shadow: var(--shadow-sm);
 }
 .pending-clock.green { color: var(--ok); }
 .pending-clock.yellow { color: #d99a12; }
@@ -847,7 +864,7 @@ a { color: inherit; text-decoration: none; }
 }
 .chat-idok {
   font-size: 10.5px; font-weight: 700; color: var(--ok);
-  background: color-mix(in srgb, var(--ok) 14%, #fff); padding: 1px 7px; border-radius: 999px; margin-left: 4px;
+  background: color-mix(in srgb, var(--ok) 14%, var(--paper-2)); padding: 1px 7px; border-radius: 999px; margin-left: 4px;
 }
 
 /* トーク画面 */
@@ -889,7 +906,7 @@ a { color: inherit; text-decoration: none; }
 .idx-wait { font-size: 12px; color: var(--muted); }
 .idx-bar.ready { display: flex; flex-direction: column; gap: 5px; align-items: center; }
 .idx-btn {
-  border: none; background: var(--ink); color: #fff; font-family: inherit; font-weight: 700; font-size: 14px;
+  border: none; background: var(--accent); color: #fff; font-family: inherit; font-weight: 700; font-size: 14px;
   padding: 10px 20px; border-radius: 999px; cursor: pointer;
   display: inline-flex; align-items: center; gap: 6px;
 }
@@ -897,7 +914,7 @@ a { color: inherit; text-decoration: none; }
 .idx-btn:hover { background: #000; }
 .idx-btns { display: flex; gap: 8px; align-items: center; }
 .idx-unmatch {
-  border: 1px solid var(--line); background: #fff; color: var(--ink-2);
+  border: 1px solid var(--line); background: var(--paper-2); color: var(--ink-2);
   font-family: inherit; font-weight: 700; font-size: 13px; padding: 9px 16px; border-radius: 999px; cursor: pointer;
 }
 .idx-unmatch:hover { border-color: var(--accent); color: var(--accent-ink); }
@@ -926,7 +943,7 @@ a { color: inherit; text-decoration: none; }
 .thread-input { flex: 0 0 auto; padding: 10px 12px; border-top: 1px solid var(--line); background: var(--paper-2); }
 .thread-stamps { display: flex; gap: 6px; margin-bottom: 8px; }
 .stamp-btn {
-  border: 1px solid var(--line); background: #fff; border-radius: 12px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--paper-2); border-radius: 12px; cursor: pointer;
   padding: 5px 8px; flex: 1; display: grid; place-items: center; line-height: 1;
 }
 .stamp-btn .stk { width: 34px; height: 34px; display: block; }
@@ -937,7 +954,7 @@ a { color: inherit; text-decoration: none; }
 .vt-ico .stk { width: 26px; height: 26px; display: block; }
 .thread-phrases { display: flex; flex-wrap: wrap; gap: 6px; }
 .phrase-btn {
-  border: 1px solid var(--line); background: #fff; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--paper-2); border-radius: 999px; cursor: pointer;
   font-family: inherit; font-size: 12.5px; color: var(--ink); padding: 7px 13px;
 }
 .phrase-btn:hover { border-color: var(--accent); color: var(--accent-ink); }
