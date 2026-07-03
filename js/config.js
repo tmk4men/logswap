@@ -34,8 +34,7 @@
     BOOST_MINUTES: 30,         // マッチ率アップ（課金アイテム）の持続時間
 
     // ── 価格（表示用。実課金はストアのIAPで設定。ここは唯一の表示ソース）──
-    PRICE_SUB_MONTH: "¥600",   // プレミアム月額
-    PRICE_SUB_YEAR: "¥4,800",  // プレミアム年額
+    PRICE_SUB_MONTH: "¥600",   // プレミアム月額（月額のみ）
     PRICE_BOOST: "¥250",       // マッチ率アップ30分（単発）
     PRICE_MSG_SLOTS: "¥120",   // トーク枠追加（単発）
     PRICE_SWIPE: "¥120",       // スワイプ+5（単発）
@@ -46,7 +45,6 @@
     IAP_ENABLED: false,
     IAP_PRODUCTS: {
       sub_month: "logswap_premium_month",
-      sub_year: "logswap_premium_year",
       boost: "logswap_boost_30m",
       msg_slots: "logswap_talkslots_3",
       swipe: "logswap_swipe_5"

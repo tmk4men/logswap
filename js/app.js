@@ -819,16 +819,14 @@
     var filter = document.getElementById("premiumFilter");
     var s = getState();
     var sub = isSub();
-    // 価格をconfigからボタンへ流し込む
+    // 価格をconfigからボタンへ流し込む（月額のみ）
     var mBtn = document.getElementById("subMonthBtn");
-    if (mBtn) mBtn.textContent = "月額プラン " + (CONFIG.PRICE_SUB_MONTH || "");
-    var yBtn = document.getElementById("subYearBtn");
-    if (yBtn) yBtn.textContent = "年額プラン " + (CONFIG.PRICE_SUB_YEAR || "");
+    if (mBtn) mBtn.textContent = "プレミアムに加入（" + (CONFIG.PRICE_SUB_MONTH || "") + "／月）";
     var boostLabel = document.getElementById("boostLabel");
     if (boostLabel) boostLabel.textContent = "マッチ率アップ（30分・" + (CONFIG.PRICE_BOOST || "") + "）";
 
     if (state) {
-      state.textContent = sub ? ("加入中（" + (s.subPlan === "year" ? "年額" : "月額") + "）") : "未加入";
+      state.textContent = sub ? "加入中（月額）" : "未加入";
       state.classList.toggle("on", sub);
     }
     if (plans) plans.hidden = sub;   // 加入中はプラン選択を隠し、解約ボタンを出す
@@ -1500,10 +1498,6 @@
     var subMonth = document.getElementById("subMonthBtn");
     if (subMonth) subMonth.addEventListener("click", function () {
       Purchases.buy("sub_month", function () { setSub(true, "month"); });
-    });
-    var subYear = document.getElementById("subYearBtn");
-    if (subYear) subYear.addEventListener("click", function () {
-      Purchases.buy("sub_year", function () { setSub(true, "year"); });
     });
     var subCancel = document.getElementById("subCancelBtn");
     if (subCancel) subCancel.addEventListener("click", function () { setSub(false); });
