@@ -221,14 +221,6 @@
     saveState(s);
     return true;
   }
-  // 課金でスワイプ枠を追加（広告の1日上限に縛られない）
-  function addSwipePaid() {
-    var s = getState();
-    rollSwipeDay(s);
-    s.swipeAdBonus = (s.swipeAdBonus || 0) + (CONFIG.SWIPE_AD_ADD || 5);
-    saveState(s);
-  }
-
   // トーク枠：無料はMSG_SLOTS_FREE、広告で一定時間だけ増える、サブスクで無制限
   function msgSlotCap() {
     if (isSub()) return Infinity;
@@ -1129,8 +1121,6 @@
       actions: [
         { label: "動画広告を見る（＋" + (CONFIG.SWIPE_AD_ADD || 5) + "・無料）", primary: true, disabled: !canAd,
           onClick: function () { Ads.showRewarded(function () { if (addSwipeAd()) render(); }); } },
-        { label: "スワイプ＋" + (CONFIG.SWIPE_AD_ADD || 5) + "を" + (CONFIG.PRICE_SWIPE || "") + "で",
-          onClick: function () { Purchases.buy("swipe", function () { addSwipePaid(); render(); }); } },
         { label: t("プレミアムに加入（") + (CONFIG.PRICE_SUB_MONTH || "") + t("／月）"), onClick: function () { subscribe(); } }
       ]
     });
