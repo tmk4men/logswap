@@ -9,7 +9,8 @@
     "android": "npm run sync && cap open android"
   },
   "devDependencies": {
-    "@capacitor/cli": "^6.2.0"
+    "@capacitor/cli": "^6.2.0",
+    "pg": "^8.22.0"
   },
   "dependencies": {
     "@capacitor/android": "^6.2.0",
