@@ -25,7 +25,7 @@ const EXT = {
 
 export default {
   async fetch(request, env) {
-    const origin = env.ALLOWED_ORIGIN || "*";
+    const origin = pickOrigin(request, env);
     if (request.method === "OPTIONS") return cors(new Response(null, { status: 204 }), origin);
 
     const url = new URL(request.url);
@@ -160,9 +160,20 @@ function publicUrl(env, key) {
 function json(obj, status = 200) {
   return new Response(JSON.stringify(obj), { status, headers: { "content-type": "application/json" } });
 }
+// 許可オリジンを決める。ALLOWED_ORIGINS（カンマ区切り）に一致すればそのオリジンを返す。
+// "*" が含まれていればリクエストのオリジンをそのまま反映（全許可）。
+function pickOrigin(request, env) {
+  const list = (env.ALLOWED_ORIGINS || env.ALLOWED_ORIGIN || "*")
+    .split(",").map((s) => s.trim()).filter(Boolean);
+  const reqOrigin = request.headers.get("Origin") || "";
+  if (list.indexOf("*") !== -1) return reqOrigin || "*";
+  if (reqOrigin && list.indexOf(reqOrigin) !== -1) return reqOrigin;
+  return list[0] || "*"; // 非許可オリジンには一致しない値を返す＝ブラウザがブロック
+}
 function cors(res, origin) {
   const h = new Headers(res.headers);
   h.set("Access-Control-Allow-Origin", origin);
+  h.set("Vary", "Origin");
   h.set("Access-Control-Allow-Methods", "POST, DELETE, OPTIONS");
   h.set("Access-Control-Allow-Headers", "authorization, content-type");
   h.set("Access-Control-Max-Age", "86400");

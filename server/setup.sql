@@ -225,10 +225,15 @@ drop policy if exists likes_delete on public.likes;
 create policy likes_delete on public.likes
   for delete to authenticated using (liker = auth.uid());
 
--- ---------------- matches（読み取りのみ。作成はトリガー） ----------------
+-- ---------------- matches（読み取り＋当事者による解除。作成はトリガー） ----------------
 drop policy if exists matches_select on public.matches;
 create policy matches_select on public.matches
   for select to authenticated using (user_a = auth.uid() or user_b = auth.uid());
+
+-- 解除（削除）は当事者のみ。messages/exchanges は cascade で消える。
+drop policy if exists matches_delete on public.matches;
+create policy matches_delete on public.matches
+  for delete to authenticated using (user_a = auth.uid() or user_b = auth.uid());
 
 -- ---------------- blocks ----------------
 drop policy if exists blocks_select on public.blocks;

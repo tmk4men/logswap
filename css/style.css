@@ -504,6 +504,34 @@ a { color: inherit; text-decoration: none; }
 .app-back:hover { background: var(--line); color: var(--ink); }
 .app-bar-spacer { width: 38px; flex: 0 0 auto; } /* app-back と対でブランドを中央寄せ */
 
+/* 自分のプロフィール画像（アプリバー右の丸アイコン） */
+.my-avatar {
+  width: 36px; height: 36px; flex: 0 0 auto; padding: 0; border: none; cursor: pointer;
+  border-radius: 50%; overflow: hidden; background: var(--paper-2);
+  display: inline-grid; place-items: center; color: var(--muted);
+  box-shadow: 0 1px 4px rgba(27, 26, 23, 0.12);
+}
+.my-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* スワイプ画面のブースト（所持していると右上に出る） */
+.swipe-boost {
+  position: absolute; top: 12px; right: 12px; z-index: 6;
+  width: 46px; height: 46px; border-radius: 50%; border: none; cursor: pointer; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: #fff; box-shadow: 0 4px 14px rgba(27, 26, 23, 0.20);
+}
+.swipe-boost.is-active {
+  box-shadow: 0 0 0 3px #f5b301, 0 6px 18px rgba(245, 179, 1, 0.5);
+  animation: boostpulse 1.5s ease-in-out infinite;
+}
+@keyframes boostpulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.09); } }
+.swipe-boost-badge {
+  position: absolute; top: -3px; right: -3px; min-width: 18px; height: 18px; padding: 0 5px;
+  border-radius: 999px; background: var(--accent); color: #fff; font-size: 11px; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+@media (prefers-reduced-motion: reduce) { .swipe-boost.is-active { animation: none; } }
+
 .app-stage { flex: 1 1 auto; min-height: 0; display: flex; padding: 16px 16px 0; }
 .app-stage .stage { flex: 1; width: 100%; height: auto; min-height: 0; }
 .app-controls { flex: 0 0 auto; align-items: center; gap: 28px; padding: 18px 0 22px; }

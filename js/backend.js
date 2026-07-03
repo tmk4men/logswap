@@ -245,6 +245,11 @@
   }
 
   // ---------- 安全機能・退会 ----------
+  // 成立を解除（削除）。当事者のみ可（RLS）。messages/exchanges は cascade で消える。
+  function deleteMatch(matchId) {
+    return sb.from("matches").delete().eq("id", matchId)
+      .then(function (r) { if (r.error) throw r.error; });
+  }
   function block(otherId) {
     return sb.from("blocks").insert({ blocker: meId, blocked: otherId })
       .then(function (r) { if (r.error && r.error.code !== "23505") throw r.error; });
@@ -275,6 +280,7 @@
     subscribeMessages: subscribeMessages,
     revealInvite: revealInvite,
     getReveals: getReveals,
+    deleteMatch: deleteMatch,
     block: block,
     report: report,
     uploadMedia: uploadMedia,

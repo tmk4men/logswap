@@ -36,7 +36,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700&family=M+PLUS+Rounded+1c:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=20260703k" />
+  <link rel="stylesheet" href="css/style.css?v=20260703m" />
 </head>
 <body class="app-page">
   <div class="app-shell">
@@ -47,17 +47,21 @@
         <span class="brand-word">LogSwap</span>
       </span>
       <span class="app-bar-spacer" aria-hidden="true"></span>
+      <button class="my-avatar" id="myAvatar" type="button" aria-label="プロフィール" hidden></button>
     </header>
 
     <!-- Card stage（スワイプタブ） -->
     <main class="app-stage view" id="view-swipe">
       <div class="stage">
+        <button class="swipe-boost" id="swipeBoost" type="button" hidden aria-label="ブースト">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M13 3L5 13h5l-1 8 8-11h-5z" fill="#f5b301"/></svg>
+          <span class="swipe-boost-badge" id="swipeBoostBadge" hidden>0</span>
+        </button>
         <div class="deck" id="deck" aria-live="polite"></div>
 
         <div class="empty" id="empty" hidden>
-          <p class="empty-title">今日のログは一巡しました</p>
-          <p class="empty-sub">新しいログが届くまでお待ちください。</p>
-          <button class="btn-primary sm" id="resetBtn" type="button">もう一度見る</button>
+          <p class="empty-title">すべて見終わりました</p>
+          <p class="empty-sub">成立した相手とはログタブでトークできます。</p>
         </div>
       </div>
 
@@ -367,19 +371,19 @@
         <p>本アプリ（以下「本サービス」）における個人情報の取り扱いについて、以下のとおり定めます。</p>
 
         <h3>1. 取得する情報</h3>
-        <p>名前、住んでいる地域（都道府県）、性別、ハッシュタグ、プロフィール画像、ログ動画。</p>
+        <p>名前、自己紹介、ハンドルID、住んでいる地域（都道府県）、性別、ハッシュタグ、プロフィール画像、ログ動画、Setlog招待ID。あわせて、利用のために自動発行される匿名アカウントID、いいね・成立・トーク・ブロック／通報の記録を取得します。性別は他のユーザーには表示されません。</p>
 
         <h3>2. 利用目的</h3>
-        <p>プロフィールの作成・表示、ユーザー同士のログ交換機能の提供、本サービスの運営・改善のために利用します。上記の目的の範囲を超えて利用することはありません。</p>
+        <p>プロフィールの作成・表示、ユーザー同士のログ交換機能（マッチング・トーク・ID交換）の提供、迷惑行為への対応、本サービスの運営・改善のために利用します。上記の目的の範囲を超えて利用することはありません。</p>
 
-        <h3>3. 保存場所</h3>
-        <p>入力された情報は、お使いの端末内（ブラウザのローカルストレージ）に保存されます。外部サーバーへ送信・保存されることはありません。</p>
+        <h3>3. 保存場所・利用する外部サービス</h3>
+        <p>入力された情報は、本サービスが利用する外部クラウドに保存されます。プロフィール・トーク等のデータは <strong>Supabase</strong>（データベース・認証）に、画像・動画は <strong>Cloudflare R2</strong> に保存され、インターネットを通じて暗号化（HTTPS）通信されます。これらのサーバーは日本国外に所在する場合があります。</p>
 
-        <h3>4. 第三者提供</h3>
-        <p>法令に基づく場合を除き、ご本人の同意なく第三者へ提供することはありません。ログ交換が成立した相手には、プロフィールとして表示される情報が共有されます。</p>
+        <h3>4. 第三者提供・委託</h3>
+        <p>法令に基づく場合を除き、ご本人の同意なく第三者へ提供することはありません。ログ交換が成立した相手には、プロフィールとして表示される情報、およびあなたが公開したSetlog招待IDが共有されます。また、上記の保存・運用のため、Supabase Inc. および Cloudflare, Inc. に情報の取り扱いを委託します。</p>
 
         <h3>5. アカウント・データの削除方法</h3>
-        <p>アプリ内の「プロフィール」タブにある<strong>「アカウントを削除」</strong>から、いつでもアカウントと関連データ（プロフィール・画像・動画・成立した相手・ブロック／通報の記録など）をすべて削除できます。削除すると元に戻せません。</p>
+        <p>アプリ内の「プロフィール」タブにある<strong>「アカウントを削除」</strong>から、いつでもアカウントと関連データ（プロフィール・画像・動画・成立した相手・トーク・ブロック／通報の記録など）を、サーバー上のものも含めてすべて削除できます。削除すると元に戻せません。</p>
 
         <h3>6. お問い合わせ</h3>
         <p>個人情報の取り扱いに関するお問い合わせは、運営者までご連絡ください。</p>
@@ -544,12 +548,24 @@
     </div>
   </div>
 
-  <script src="js/config.js?v=20260703l"></script>
-  <script src="js/vendor/supabase.js?v=20260703l"></script>
-  <script src="js/backend.js?v=20260703l"></script>
-  <script src="js/ads.js?v=20260703l"></script>
-  <script src="js/purchases.js?v=20260703l"></script>
-  <script src="js/data.js?v=20260703l"></script>
-  <script src="js/app.js?v=20260703l"></script>
+  <!-- ブースト使用 -->
+  <div class="overlay" id="boostOverlay" hidden>
+    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="boostDlgTitle">
+      <h2 class="policy-title" id="boostDlgTitle">ブーストを使う</h2>
+      <p class="report-sub" id="boostDlgSub"></p>
+      <div class="dialog-actions">
+        <button class="btn-primary" id="boostUseBtn" type="button">使用する（30分）</button>
+        <button class="btn-ghost" id="boostDlgCancel" type="button">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/config.js?v=20260703m"></script>
+  <script src="js/vendor/supabase.js?v=20260703m"></script>
+  <script src="js/backend.js?v=20260703m"></script>
+  <script src="js/ads.js?v=20260703m"></script>
+  <script src="js/purchases.js?v=20260703m"></script>
+  <script src="js/data.js?v=20260703m"></script>
+  <script src="js/app.js?v=20260703m"></script>
 </body>
 </html>

@@ -240,12 +240,67 @@
     return true;
   }
 
-  // マッチ率アップ（課金アイテムのデモ）
+  // マッチ率アップ（課金アイテム）：購入で「所持」が増え、スワイプ画面から使用して30分アクティブ化
   function boostActive() { var s = getState(); return !!(s.boostUntil && Date.now() < s.boostUntil); }
-  function startBoost() {
+  function boostOwnedCount() { return getState().boostOwned || 0; }
+  function addBoostItem() { var s = getState(); s.boostOwned = (s.boostOwned || 0) + 1; saveState(s); }
+  // 所持ブーストを1つ使って30分アクティブ化。既に使用中／所持0なら何もしない。
+  function useBoostItem() {
     var s = getState();
+    if (s.boostUntil && Date.now() < s.boostUntil) return false;
+    if ((s.boostOwned || 0) < 1) return false;
+    s.boostOwned -= 1;
     s.boostUntil = Date.now() + (CONFIG.BOOST_MINUTES || 30) * 60000;
     saveState(s);
+    return true;
+  }
+
+  // スワイプ画面右上のブーストアイコン（所持 or 使用中で表示）
+  function renderSwipeBoost() {
+    var btn = document.getElementById("swipeBoost");
+    if (!btn) return;
+    var owned = boostOwnedCount();
+    var active = boostActive();
+    btn.hidden = !(owned > 0 || active);
+    btn.classList.toggle("is-active", active);
+    var badge = document.getElementById("swipeBoostBadge");
+    if (badge) {
+      var showBadge = !active && owned > 0;
+      badge.hidden = !showBadge;
+      if (showBadge) badge.textContent = owned;
+    }
+  }
+  // ブーストアイコンをタップ → 使用ダイアログ（使用中は残り時間、所持ありは「使用する」）
+  function openBoostDialog() {
+    var ov = document.getElementById("boostOverlay");
+    if (!ov) return;
+    var title = document.getElementById("boostDlgTitle");
+    var sub = document.getElementById("boostDlgSub");
+    var useBtn = document.getElementById("boostUseBtn");
+    if (boostActive()) {
+      var mins = Math.max(1, Math.round((getState().boostUntil - Date.now()) / 60000));
+      if (title) title.textContent = "ブースト中";
+      if (sub) sub.textContent = "あと約" + mins + "分、あなたが交換されやすくなっています。";
+      if (useBtn) useBtn.hidden = true;
+    } else {
+      if (title) title.textContent = "ブーストを使う";
+      if (sub) sub.textContent = "30分間、あなたが交換されやすくなります。（所持：" + boostOwnedCount() + "個）";
+      if (useBtn) useBtn.hidden = boostOwnedCount() < 1;
+    }
+    openOverlay(ov);
+  }
+  // アプリバー右の自分のアイコン（プロフィール画像を丸く表示）
+  function renderMyAvatar() {
+    var el = document.getElementById("myAvatar");
+    if (!el) return;
+    var gate = document.getElementById("profileSetup");
+    var gated = gate && !gate.hidden;
+    var p = getProfile();
+    if (gated || !p) { el.hidden = true; return; }
+    el.hidden = false;
+    el.innerHTML = p.image
+      ? '<img src="' + esc(p.image) + '" alt="" />'
+      : '<svg viewBox="0 0 24 24" width="20" height="20" class="ico-line"><circle cx="12" cy="8" r="4"/><path d="M5 20c0-3.5 3.1-6 7-6s7 2.5 7 6"/></svg>';
   }
 
   // Setlog招待IDのプール。1グループにつき1つ。交換で1つ消費し、使い切り（再送しない）。
@@ -609,6 +664,8 @@
       controlsEl.removeAttribute("aria-hidden");
       controlsEl.style.visibility = "visible";
     }
+    renderMyAvatar();
+    renderSwipeBoost();
   }
 
   // ---------- タブ切替（スワイプ / ログ・チャット / プロフィール）----------
@@ -626,6 +683,7 @@
     });
     if (name === "chat") renderChat();
     if (name === "profile") renderProfile();
+    if (name === "swipe") renderSwipeBoost();
   }
 
   // ---------- チャット（枠バー＋未トーク（モザイク）＋トーク中）----------
@@ -971,6 +1029,11 @@
   }
   // 交換を解除（＝トーク枠が1つ空く）
   function unmatchThread(user) {
+    var c = convos[user.id];
+    if (BE && c && c.matchId) {
+      if (c._unsub) { try { c._unsub(); } catch (e) {} } // realtime購読を解除
+      Backend.deleteMatch(c.matchId).catch(function (e) { console.error("unmatch failed", e); });
+    }
     matches = matches.filter(function (m) { return m.id !== user.id; });
     delete convos[user.id];
     threadUser = null;
@@ -1094,7 +1157,7 @@
     var mBtn = document.getElementById("subMonthBtn");
     if (mBtn) mBtn.textContent = "プレミアムに加入（" + (CONFIG.PRICE_SUB_MONTH || "") + "／月）";
     var boostLabel = document.getElementById("boostLabel");
-    if (boostLabel) boostLabel.textContent = "ブースト（30分・" + (CONFIG.PRICE_BOOST || "") + "）";
+    if (boostLabel) boostLabel.textContent = "ブーストを買う（" + (CONFIG.PRICE_BOOST || "") + "）";
 
     if (state) {
       state.textContent = sub ? "加入中（月額）" : "未加入";
@@ -1110,6 +1173,9 @@
       if (boostActive()) {
         var mins = Math.max(1, Math.round((getState().boostUntil - Date.now()) / 60000));
         note.hidden = false; note.innerHTML = BOLT_SVG + " ブースト中（あと約" + mins + "分）";
+      } else if (boostOwnedCount() > 0) {
+        note.hidden = false;
+        note.innerHTML = BOLT_SVG + " ブースト所持：" + boostOwnedCount() + "個（スワイプ画面の右上から使えます）";
       } else note.hidden = true;
     }
   }
@@ -1395,7 +1461,7 @@
   // ---------- オーバーレイ開閉＋フォーカス管理（a11y） ----------
   var lastFocused = null;
   // 手前（最前面）から順に。フォーカストラップ・背景クリック・Escで使う
-  var OVERLAY_IDS = ["limitOverlay", "unmatchOverlay", "deleteOverlay", "blockOverlay", "reportOverlay", "policyOverlay",
+  var OVERLAY_IDS = ["boostOverlay", "limitOverlay", "unmatchOverlay", "deleteOverlay", "blockOverlay", "reportOverlay", "policyOverlay",
     "termsOverlay", "previewOverlay", "logViewer", "threadOverlay", "matchOverlay"];
 
   function focusables(el) {
@@ -1561,7 +1627,8 @@
     document.getElementById("infoBtn").onclick = function () {
       if (index < users.length && !users[index].__ad) openViewer(users[index]);
     };
-    document.getElementById("resetBtn").onclick = init;
+    var resetBtn = document.getElementById("resetBtn");
+    if (resetBtn) resetBtn.onclick = init;
 
     // 初回プロフィール入力フォーム（app.html のみ）
     var pform = document.getElementById("profileSetup");
@@ -1906,8 +1973,26 @@
     }
     var boostBtn = document.getElementById("boostBtn");
     if (boostBtn) boostBtn.addEventListener("click", function () {
-      Purchases.buy("boost", function () { startBoost(); rebuildDeck(); renderPremium(); });
+      // 購入すると「所持」が1つ増える。実際の使用はスワイプ画面のブーストアイコンから。
+      Purchases.buy("boost", function () { addBoostItem(); renderSwipeBoost(); renderPremium(); });
     });
+    // スワイプ画面のブーストアイコン → 使用ダイアログ
+    var swipeBoostBtn = document.getElementById("swipeBoost");
+    if (swipeBoostBtn) swipeBoostBtn.addEventListener("click", openBoostDialog);
+    var boostUseBtn = document.getElementById("boostUseBtn");
+    if (boostUseBtn) boostUseBtn.addEventListener("click", function () {
+      if (useBoostItem()) {
+        closeOverlay(document.getElementById("boostOverlay"));
+        rebuildDeck(); renderSwipeBoost(); renderPremium();
+      }
+    });
+    var boostDlgCancel = document.getElementById("boostDlgCancel");
+    if (boostDlgCancel) boostDlgCancel.addEventListener("click", function () {
+      closeOverlay(document.getElementById("boostOverlay"));
+    });
+    // アプリバーの自分アイコン → プロフィールタブ
+    var myAvatarBtn = document.getElementById("myAvatar");
+    if (myAvatarBtn) myAvatarBtn.addEventListener("click", function () { showView("profile"); });
 
     // アカウント削除（確認ダイアログを挟む）
     var delBtn = document.getElementById("deleteAccountBtn");
@@ -1999,5 +2084,6 @@
     if (pruneExpiredPending()) updateTabIndicators();
     var chat = document.getElementById("view-chat");
     if (chat && !chat.hidden) renderChat();
+    renderSwipeBoost(); // ブーストの期限切れをアイコンに反映
   }, 60000);
 })();

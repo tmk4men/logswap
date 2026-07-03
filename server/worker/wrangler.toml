@@ -15,8 +15,9 @@ bucket_name = "logswap"
 # R2 公開URLのベース。カスタムドメイン推奨（例 https://media.example.com）。
 # とりあえず試すだけなら R2 の r2.dev 公開URL でも可。
 PUBLIC_BASE = "https://pub-516f4f8a73974ceeb18c14233b8e2dcb.r2.dev"
-# 本番はアプリのオリジンに絞る（例 "https://tmk4men.github.io"）。開発中は "*"。
-ALLOWED_ORIGIN = "*"
+# 許可オリジン（カンマ区切り）。Web(github.io)＋Capacitor(Android=https://localhost,
+# iOS=capacitor://localhost)＋ローカル開発。"*" にすると全許可。
+ALLOWED_ORIGINS = "https://tmk4men.github.io,https://localhost,capacitor://localhost,http://localhost"
 # Supabase プロジェクトURL。ユーザートークン(ES256)検証用の JWKS 取得に使う。
 SUPABASE_URL = "https://pryabdockektzvghowcb.supabase.co"
 
