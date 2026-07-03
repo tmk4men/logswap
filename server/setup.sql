@@ -1,4 +1,12 @@
 -- =====================================================================
+-- LogSwap セットアップ（貼るだけ版・自動生成）
+-- Supabase の SQL Editor に全部貼って「Run」1回でOK。
+-- schema.sql + policies.sql を結合（R2構成では不要なストレージ節は除外）。
+-- ※ ライブDBは server/migrations/*.sql を随時適用済み。これは新規構築用。
+-- =====================================================================
+
+
+-- =====================================================================
 -- LogSwap バックエンド スキーマ（Supabase / PostgreSQL）
 -- ---------------------------------------------------------------------
 -- Supabase の SQL Editor にこのファイルの内容を貼って実行する。
@@ -164,3 +172,127 @@ as $$
   order by p.created_at desc
   limit greatest(1, least(max_count, 100));
 $$;
+
+
+-- =====================================================================
+-- RLS policies (policies.sql / storage section excluded)
+-- =====================================================================
+
+alter table public.profiles          enable row level security;
+alter table public.private_profiles  enable row level security;
+alter table public.likes             enable row level security;
+alter table public.matches           enable row level security;
+alter table public.blocks            enable row level security;
+alter table public.reports           enable row level security;
+alter table public.messages          enable row level security;
+alter table public.exchanges         enable row level security;
+
+-- ---------------- profiles（公開情報） ----------------
+-- 読み取り: ログイン済みなら誰でも（スワイプに出すため）
+drop policy if exists profiles_select on public.profiles;
+create policy profiles_select on public.profiles
+  for select to authenticated using (true);
+
+-- 追加・更新・削除は自分の行だけ
+drop policy if exists profiles_insert on public.profiles;
+create policy profiles_insert on public.profiles
+  for insert to authenticated with check (id = auth.uid());
+
+drop policy if exists profiles_update on public.profiles;
+create policy profiles_update on public.profiles
+  for update to authenticated using (id = auth.uid()) with check (id = auth.uid());
+
+drop policy if exists profiles_delete on public.profiles;
+create policy profiles_delete on public.profiles
+  for delete to authenticated using (id = auth.uid());
+
+-- ---------------- private_profiles（本人のみ） ----------------
+drop policy if exists private_all on public.private_profiles;
+create policy private_all on public.private_profiles
+  for all to authenticated using (id = auth.uid()) with check (id = auth.uid());
+
+-- ---------------- likes ----------------
+-- 自分が押したいいねだけ作成/削除。読み取りは「自分が関わる行」。
+drop policy if exists likes_select on public.likes;
+create policy likes_select on public.likes
+  for select to authenticated using (liker = auth.uid() or likee = auth.uid());
+
+drop policy if exists likes_insert on public.likes;
+create policy likes_insert on public.likes
+  for insert to authenticated with check (liker = auth.uid());
+
+drop policy if exists likes_delete on public.likes;
+create policy likes_delete on public.likes
+  for delete to authenticated using (liker = auth.uid());
+
+-- ---------------- matches（読み取りのみ。作成はトリガー） ----------------
+drop policy if exists matches_select on public.matches;
+create policy matches_select on public.matches
+  for select to authenticated using (user_a = auth.uid() or user_b = auth.uid());
+
+-- ---------------- blocks ----------------
+drop policy if exists blocks_select on public.blocks;
+create policy blocks_select on public.blocks
+  for select to authenticated using (blocker = auth.uid());
+
+drop policy if exists blocks_insert on public.blocks;
+create policy blocks_insert on public.blocks
+  for insert to authenticated with check (blocker = auth.uid());
+
+drop policy if exists blocks_delete on public.blocks;
+create policy blocks_delete on public.blocks
+  for delete to authenticated using (blocker = auth.uid());
+
+-- ---------------- reports（作成のみ。閲覧は運営＝サービスロール） ----------------
+drop policy if exists reports_insert on public.reports;
+create policy reports_insert on public.reports
+  for insert to authenticated with check (reporter = auth.uid());
+-- 通報一覧の閲覧は service_role（管理画面/サーバー）からのみ。RLS を通さないので追加ポリシー不要。
+
+-- ---------------- messages（成立した相手とだけ） ----------------
+-- 自分が参加している match のメッセージだけ読める
+drop policy if exists messages_select on public.messages;
+create policy messages_select on public.messages
+  for select to authenticated using (
+    exists (
+      select 1 from public.matches m
+      where m.id = messages.match_id
+        and (m.user_a = auth.uid() or m.user_b = auth.uid())
+    )
+  );
+
+-- 送信は「自分が参加している match」かつ「sender = 自分」
+drop policy if exists messages_insert on public.messages;
+create policy messages_insert on public.messages
+  for insert to authenticated with check (
+    sender = auth.uid()
+    and exists (
+      select 1 from public.matches m
+      where m.id = messages.match_id
+        and (m.user_a = auth.uid() or m.user_b = auth.uid())
+    )
+  );
+
+-- ---------------- exchanges（成立相手だけが公開コードを読める） ----------------
+-- 読み: その成立の当事者2人だけ
+drop policy if exists exchanges_select on public.exchanges;
+create policy exchanges_select on public.exchanges
+  for select to authenticated using (
+    exists (
+      select 1 from public.matches m
+      where m.id = exchanges.match_id
+        and (m.user_a = auth.uid() or m.user_b = auth.uid())
+    )
+  );
+
+-- 書き: giver 本人が、自分が参加する成立にだけ（使い切りは PK で担保）
+drop policy if exists exchanges_insert on public.exchanges;
+create policy exchanges_insert on public.exchanges
+  for insert to authenticated with check (
+    giver = auth.uid()
+    and exists (
+      select 1 from public.matches m
+      where m.id = exchanges.match_id
+        and (m.user_a = auth.uid() or m.user_b = auth.uid())
+    )
+  );

@@ -16,6 +16,10 @@
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var CONFIG = window.LOGSWAP_CONFIG || {};
 
+  // バックエンド接続層（js/backend.js）。未接続/無効時は enabled=false でデモ動作。
+  var Backend = window.LogSwapBackend || { enabled: false };
+  var BE = Backend.enabled;
+
   // 広告・課金レイヤ（ads.js / purchases.js）。未読込でも動くフォールバック付き。
   var Ads = window.LogSwapAds || { showRewarded: function (cb) { if (cb) cb(); } };
   var Purchases = window.LogSwapPurchases ||
@@ -45,9 +49,11 @@
   var controlsEl = document.getElementById("controls");
   var coachEl = document.getElementById("coach");
 
-  // 画像URL（picsum を webp で。リポジトリを軽く保つため外部参照）
+  // 画像URL。実URL（R2など http/https）はそのまま返し、そうでなければ picsum のシード扱い。
+  // （デモのモックは seed 文字列、バックエンド実ユーザーは R2 の公開URL）
   function photoUrl(seed, w, h) {
-    return "https://picsum.photos/seed/" + encodeURIComponent(seed) + "/" + w + "/" + h + ".webp";
+    if (typeof seed === "string" && /^https?:\/\//.test(seed)) return seed;
+    return "https://picsum.photos/seed/" + encodeURIComponent(seed || "logswap") + "/" + w + "/" + h + ".webp";
   }
 
   // ---------- プロフィール（初回入力 → localStorage に保存） ----------
@@ -58,6 +64,45 @@
   }
   function saveProfile(p) {
     try { localStorage.setItem(PROFILE_KEY, JSON.stringify(p)); } catch (e) {}
+  }
+
+  // バックエンド接続時のプロフィール保存：新規メディアだけアップロード→DBへ upsert→
+  // 返ってきた実データ（URL入り）を localStorage にミラーしてデッキを更新。
+  function saveProfileToBackend(profileObj) {
+    var media = {};
+    if (typeof pendingImage === "string" && pendingImage.indexOf("data:") === 0) media.image = pendingImage;
+    if (typeof pendingImage2 === "string" && pendingImage2.indexOf("data:") === 0) media.image2 = pendingImage2;
+    if (pendingVideoBlob) media.video = pendingVideoBlob;
+    setFormSaving(true);
+    Backend.saveProfile(profileObj, media).then(function (saved) {
+      saveProfile(saved);
+      setFormSaving(false);
+      setAppGated(false);
+      showView("swipe");
+      renderChat();
+      updateTabIndicators();
+      return refreshDeck();
+    }).catch(function (e) {
+      setFormSaving(false);
+      console.error("save profile failed", e);
+      showSaveError(e);
+    });
+  }
+  function setFormSaving(on) {
+    var b = document.getElementById("pfStart");
+    if (!b) return;
+    if (on) { if (!b._label) b._label = b.textContent; b.disabled = true; b.textContent = "保存中…"; }
+    else { b.disabled = false; if (b._label) { b.textContent = b._label; b._label = ""; } }
+  }
+  function showSaveError(e) {
+    if (e && e.code === "23505") { // handle 一意制約違反
+      var he = document.getElementById("pf-handle-err");
+      if (he) { he.textContent = "このハンドルIDは既に使われています。別のIDにしてください。"; he.hidden = false; }
+      var h = document.getElementById("pf-handle"); if (h && !h.disabled) setFocus(h);
+      return;
+    }
+    var ne = document.getElementById("pf-name-err");
+    if (ne) { ne.textContent = "保存に失敗しました。通信環境を確認して、もう一度お試しください。"; ne.hidden = false; }
   }
 
   // ---------- 安全機能：ブロック／通報（端末内に保存。実運用ではサーバへ送信） ----------
@@ -75,6 +120,7 @@
     if (a.indexOf(id) === -1) { a.push(id); try { localStorage.setItem(BLOCK_KEY, JSON.stringify(a)); } catch (e) {} }
   }
   function addReport(id, reason) {
+    if (BE) { Backend.report(id, reason).catch(function (e) { console.error("report failed", e); }); return; }
     var a;
     try { a = JSON.parse(localStorage.getItem(REPORT_KEY) || "[]"); } catch (e) { a = []; }
     a.push({ id: id, reason: reason });
@@ -84,6 +130,7 @@
   function hideUser(user) {
     if (!user) return;
     blockId(user.id);
+    if (BE) Backend.block(user.id).catch(function (e) { console.error("block failed", e); });
     matches = matches.filter(function (m) { return m.id !== user.id; });
     delete convos[user.id];
     if (users[index] && users[index].id === user.id) index++; // 表示中のカードなら次へ送る
@@ -460,29 +507,84 @@
     index = 0;
   }
   // フィルタ/ブースト/課金の変更時：デッキだけ組み直す（成立相手は消さない）
-  function rebuildDeck() { buildDeck(); render(); renderChat(); }
+  function rebuildDeck() {
+    if (BE) { refreshDeck(); renderChat(); return; }
+    buildDeck(); render(); renderChat();
+  }
 
   // ---------- 初期化 ----------
   function init() {
-    buildDeck();
     matches = [];
     convos = {};
     threadUser = null;
     coachShown = false;
+    if (BE) { initBackend(); return; }
+    buildDeck();
     // app.html では初回（プロフィール未登録）はプロフ入力から入る
     var gate = document.getElementById("profileSetup");
-    if (gate && !getProfile()) { // 新規：ハンドルID設定可・招待チップ空・同意欄あり
-      setHandleLocked(false);
-      setProfileFormMode(false);
-      pendingInvites = []; renderInviteChips();
-      var iin = document.getElementById("pf-invite-input"); if (iin) iin.value = "";
-      setAppGated(true); return;
-    }
+    if (gate && !getProfile()) { showSetupGate(); return; }
     setAppGated(false);
     render();
     showView("swipe");
     renderChat();
     updateTabIndicators();
+  }
+
+  // 新規プロフィール入力ゲートを表示（ハンドルID設定可・招待チップ空・同意欄あり）
+  function showSetupGate() {
+    setHandleLocked(false);
+    setProfileFormMode(false);
+    pendingInvites = []; renderInviteChips();
+    var iin = document.getElementById("pf-invite-input"); if (iin) iin.value = "";
+    setAppGated(true);
+  }
+
+  // バックエンド接続時の起動：匿名ログイン → 自分のプロフィール → 成立相手 → デッキ
+  function initBackend() {
+    Backend.init().then(function () {
+      return Backend.getMyProfile();
+    }).then(function (profile) {
+      if (profile && profile.name) {
+        saveProfile(profile);   // localStorage を実データのミラーに（同期コードが getProfile を使うため）
+      } else {
+        try { localStorage.removeItem(PROFILE_KEY); } catch (e) {}
+        showSetupGate();
+        throw "gate";           // デッキ読込をスキップ
+      }
+      return hydrateMatches();
+    }).then(function () {
+      setAppGated(false);
+      showView("swipe");
+      renderChat();
+      updateTabIndicators();
+      return refreshDeck();
+    }).catch(function (e) {
+      if (e === "gate") return;
+      console.error("backend init error", e);
+      if (!getProfile()) { showSetupGate(); return; }
+      setAppGated(false); showView("swipe"); renderChat(); updateTabIndicators();
+    });
+  }
+
+  // 成立相手をサーバーから読み込み matches / convos に反映
+  function hydrateMatches() {
+    return Backend.listMatches().then(function (list) {
+      matches = list.slice();
+      list.forEach(function (u) {
+        var c = convo(u.id);
+        c.matchId = u.matchId;
+        if (!c.matchedAt) c.matchedAt = Date.now();
+      });
+    });
+  }
+
+  // スワイプ配信をサーバーから取得して差し替え
+  function refreshDeck() {
+    return Backend.getSwipeQueue(50).then(function (list) {
+      users = interleaveAds(list.filter(function (u) { return !isBlocked(u.id); }));
+      index = 0;
+      render();
+    }).catch(function (e) { console.error("deck load failed", e); users = []; index = 0; render(); });
   }
 
   // プロフ入力ゲートの表示切替（app.html のみ。要素が無ければ何もしない）
@@ -612,7 +714,7 @@
   // ※UIのアイコン（鍵・稲妻など）は絵文字を使わずSVGで統一。
   // 小さな装飾SVG（鍵・稲妻）。
   var KEY_SVG = '<svg viewBox="0 0 24 24" width="15" height="15" class="ico-line" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l8-8M17 4l2 2M15 6l1.5 1.5"/></svg>';
-  var BOLT_SVG = '<svg viewBox="0 0 24 24" width="14" height="14" class="ico-line" aria-hidden="true"><path d="M13 3L5 13h5l-1 8 8-11h-5z"/></svg>';
+  var BOLT_SVG = '<svg viewBox="0 0 24 24" width="14" height="14" class="ico-bolt" aria-hidden="true"><path d="M13 3L5 13h5l-1 8 8-11h-5z" fill="#f5b301"/></svg>';
 
   // ---------- トーク画面（定型文＋スタンプのみ）----------
   var threadUser = null;
@@ -631,6 +733,7 @@
     if (nm) nm.textContent = user.name;
     var hd = document.getElementById("threadHandle");
     if (hd) hd.textContent = user.handle || "";
+    if (BE) hydrateThread(user);
     renderThread(user);
     updateTabIndicators();
     renderChat();
@@ -674,13 +777,22 @@
     var myTurns = c.msgs.filter(function (m) { return m.from === "me"; }).length;
     var need = (typeof CONFIG.ID_EXCHANGE_MIN_TURNS === "number") ? CONFIG.ID_EXCHANGE_MIN_TURNS : 3;
 
-    if (c.revealed) {
-      // 公開したIDは1つだけ（あなたの招待ID）。2人とものID公開は不要。
+    if (c.revealed || c.theirId) {
+      // 自分が公開した／相手から受け取った招待IDを表示（両方ありうる）
       bar.hidden = false;
       bar.className = "idx-bar revealed";
-      bar.innerHTML =
+      var html = "";
+      if (c.revealed) html +=
         '<div class="idx-done">' + KEY_SVG + ' IDを公開しました</div>' +
         '<div class="idx-pair"><span class="idx-label">あなたの招待ID</span><span class="idx-val">' + esc(c.myGivenId || "") + "</span></div>";
+      if (c.theirId) html +=
+        '<div class="idx-pair"><span class="idx-label">相手の招待ID</span><span class="idx-val">' + esc(c.theirId) + "</span></div>";
+      // 相手からもらったが自分はまだ、のときは「自分も公開」ボタン
+      if (BE && !c.revealed && c.theirId && availableInviteCount() > 0)
+        html += '<div class="idx-btns"><button class="idx-btn" id="idxBtn" type="button">' + KEY_SVG + ' 自分のIDも公開する</button></div>';
+      bar.innerHTML = html;
+      var rb = document.getElementById("idxBtn");
+      if (rb) rb.onclick = function () { confirmIdExchange(user); };
       return;
     }
     // 公開できる招待IDが尽きていたら、ここで1つ追加できる（プロフィールと共有）
@@ -729,7 +841,8 @@
         (capped ? '<button class="idx-unmatch" id="idxUnmatch" type="button">解除する</button>' : "") +
       "</div>";
     var btn = document.getElementById("idxBtn");
-    if (btn) btn.onclick = function () { requestIdExchange(user); };
+    // バックエンドは相手の自動同意が無いので、押したら自分のIDを直接公開する
+    if (btn) btn.onclick = function () { if (BE) confirmIdExchange(user); else requestIdExchange(user); };
     var un = document.getElementById("idxUnmatch");
     if (un) un.onclick = function () { askUnmatch(user); };
   }
@@ -744,6 +857,7 @@
     invites.push({ code: code, usedWith: null });
     prof.inviteIds = invites;
     saveProfile(prof);
+    if (BE) Backend.saveProfile(prof, {}).catch(function (e) { console.error("invite save failed", e); });
     renderThread(user); // 追加後は交換ボタンが出る
   }
 
@@ -764,6 +878,19 @@
     var slot = null;
     for (var i = 0; i < invites.length; i++) { if (!invites[i].usedWith) { slot = invites[i]; break; } }
     if (!slot) { renderThread(user); return; } // 公開できるIDが無い
+    if (BE) {
+      if (!c.matchId) return;
+      Backend.revealInvite(c.matchId, slot.code).then(function () {
+        slot.usedWith = user.id;
+        prof.inviteIds = invites;
+        saveProfile(prof);                        // localStorage ミラー
+        return Backend.saveProfile(prof, {});     // 招待プールの使用済みをDBに反映
+      }).then(function () {
+        c.revealed = true; c.myGivenId = slot.code;
+        renderThread(user); renderChat();
+      }).catch(function (e) { console.error("reveal failed", e); });
+      return;
+    }
     slot.usedWith = user.id;                    // 使い切り：二度と送信されない
     prof.inviteIds = invites;
     saveProfile(prof);
@@ -774,11 +901,50 @@
     renderChat();
   }
 
+  // バックエンド接続時：トークを開いたら過去メッセージ＋公開状態を読み、新着を購読
+  function hydrateThread(user) {
+    var c = convo(user.id);
+    if (!c.matchId || c._hydrated) return;
+    c._hydrated = true;
+    c.seen = c.seen || {};
+    Backend.listMessages(c.matchId).then(function (rows) {
+      c.msgs = []; c.seen = {};
+      rows.forEach(function (row) {
+        c.seen[row.id] = 1;
+        c.msgs.push({ id: row.id, from: row.sender === Backend.userId ? "me" : "them", kind: row.kind, body: row.body });
+      });
+      if (threadUser === user) renderThread(user);
+      updateTabIndicators();
+    }).catch(function (e) { console.error("load messages failed", e); });
+    Backend.getReveals(c.matchId).then(function (r) {
+      if (r.mine) { c.revealed = true; c.myGivenId = r.mine; }
+      if (r.theirs) c.theirId = r.theirs;
+      if (threadUser === user) renderThread(user);
+    }).catch(function () {});
+    c._unsub = Backend.subscribeMessages(c.matchId, function (row) { appendServerMsg(user, row); });
+  }
+  function appendServerMsg(user, row) {
+    var c = convo(user.id);
+    c.seen = c.seen || {};
+    if (c.seen[row.id]) return;
+    c.seen[row.id] = 1;
+    c.msgs.push({ id: row.id, from: row.sender === Backend.userId ? "me" : "them", kind: row.kind, body: row.body });
+    if (threadUser === user) renderThread(user);
+    updateTabIndicators();
+    var chat = document.getElementById("view-chat");
+    if (chat && !chat.hidden) renderChat();
+  }
+
   function sendToThread(user, kind, body) {
     var c = convo(user.id);
     // ID交換前の往復上限に達していたら送らない（入力は無効化済みだが二重の保険）
     var myTurns = c.msgs.filter(function (m) { return m.from === "me"; }).length;
     if (!c.revealed && myTurns >= (CONFIG.MSG_MAX_TURNS || 10)) return;
+    if (BE) {
+      if (!c.matchId) return;
+      Backend.sendMessage(c.matchId, kind, body).catch(function (e) { console.error("send failed", e); });
+      return; // 自分の送信も realtime で届くのでローカル追加はしない（重複防止）
+    }
     c.msgs.push({ from: "me", kind: kind, body: body });
     renderThread(user);
     updateTabIndicators(); // 送信したのでトークタブのバッジを更新
@@ -1009,6 +1175,13 @@
   // アカウント削除：端末内のデータを全消去して初回状態へ戻す。
   // （バックエンド接続時は、ここでサーバー側の退会APIも呼ぶ。ストア審査の必須要件）
   function deleteAccount() {
+    if (BE && Backend.deleteAccount) {
+      Backend.deleteAccount().catch(function (e) { console.error("delete failed", e); }).then(localDeleteReset);
+      return;
+    }
+    localDeleteReset();
+  }
+  function localDeleteReset() {
     try {
       localStorage.removeItem(PROFILE_KEY);
       localStorage.removeItem(BLOCK_KEY);
@@ -1190,7 +1363,14 @@
     var delay = reduceMotion ? 0 : 520;
     setTimeout(function () {
       render();
-      if (choice === "yes" && user.likesBack) registerMatch(user);
+      if (choice !== "yes" || user.__ad) return;
+      if (BE) {
+        Backend.like(user.id).then(function (r) {
+          if (r.matched) { user.matchId = r.matchId; registerMatch(user); }
+        }).catch(function (e) { console.error("like failed", e); });
+      } else if (user.likesBack) {
+        registerMatch(user);
+      }
     }, delay);
   }
 
@@ -1251,6 +1431,7 @@
     if (matches.some(function (m) { return m.id === user.id; })) return;
     matches.push(user);
     var c = convo(user.id);
+    if (user.matchId) c.matchId = user.matchId;
     if (!c.matchedAt) c.matchedAt = Date.now();
     fillSlots(); // 枠が空いていれば自動でトーク一覧へ。無ければモザイクで待機。
     showMatch(user);
@@ -1605,7 +1786,7 @@
           unusedEntries.push({ code: code, usedWith: null });
         });
         var inviteIds = usedEntries.concat(unusedEntries);
-        saveProfile({
+        var profileObj = {
           name: name,
           bio: (document.getElementById("pf-bio") || {}).value || "",
           handle: "@" + handle,
@@ -1616,7 +1797,9 @@
           tags: tags,
           image: pendingImage || "",
           videoName: pendingVideoName || ""
-        });
+        };
+        if (BE) { saveProfileToBackend(profileObj); return; }
+        saveProfile(profileObj);
         setAppGated(false);
         render();
         showView("swipe");

@@ -8,10 +8,10 @@
  */
 (function () {
   var defaults = {
-    BACKEND: false,            // true で Supabase 接続（app.js の実接続差し替え後に有効）
-    SUPABASE_URL: "",
-    SUPABASE_ANON_KEY: "",
-    WORKER_URL: "",            // 画像・動画アップロード用 Cloudflare Worker の URL
+    BACKEND: true,             // Supabase + R2 実接続（app.js 実装済み）
+    SUPABASE_URL: "https://pryabdockektzvghowcb.supabase.co",
+    SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InByeWFiZG9ja2VrdHp2Z2hvd2NiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMwNjg0NjgsImV4cCI6MjA5ODY0NDQ2OH0.1ybnhHygEZ_kNdqqjQ5ot4pnPgmKOZrTR6XxwE42Gak",
+    WORKER_URL: "https://logswap-media.tmk4men.workers.dev", // 画像・動画アップロード用 Cloudflare Worker
     ADS_ENABLED: false,        // スワイプ内に広告カードを差し込むか
     AD_INTERVAL: 6,            // 実カード何枚ごとに広告カードを1枚挟むか
 

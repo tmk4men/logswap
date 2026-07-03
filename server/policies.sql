@@ -12,6 +12,7 @@ alter table public.matches           enable row level security;
 alter table public.blocks            enable row level security;
 alter table public.reports           enable row level security;
 alter table public.messages          enable row level security;
+alter table public.exchanges         enable row level security;
 
 -- ---------------- profiles（公開情報） ----------------
 -- 読み取り: ログイン済みなら誰でも（スワイプに出すため）
@@ -95,6 +96,30 @@ create policy messages_insert on public.messages
     and exists (
       select 1 from public.matches m
       where m.id = messages.match_id
+        and (m.user_a = auth.uid() or m.user_b = auth.uid())
+    )
+  );
+
+-- ---------------- exchanges（成立相手だけが公開コードを読める） ----------------
+-- 読み: その成立の当事者2人だけ
+drop policy if exists exchanges_select on public.exchanges;
+create policy exchanges_select on public.exchanges
+  for select to authenticated using (
+    exists (
+      select 1 from public.matches m
+      where m.id = exchanges.match_id
+        and (m.user_a = auth.uid() or m.user_b = auth.uid())
+    )
+  );
+
+-- 書き: giver 本人が、自分が参加する成立にだけ（使い切りは PK で担保）
+drop policy if exists exchanges_insert on public.exchanges;
+create policy exchanges_insert on public.exchanges
+  for insert to authenticated with check (
+    giver = auth.uid()
+    and exists (
+      select 1 from public.matches m
+      where m.id = exchanges.match_id
         and (m.user_a = auth.uid() or m.user_b = auth.uid())
     )
   );

@@ -75,29 +75,72 @@ async function handleDelete(request, env) {
   return json({ deleted: keys.length });
 }
 
-// ---------- 認証（Supabase の access_token / HS256 JWT を検証） ----------
+// ---------- 認証（Supabase の access_token を検証） ----------
+// 新しめの Supabase はユーザートークンを ES256(非対称・JWKS公開)で署名する。
+// 旧 HS256(共有シークレット)にも対応（header.alg で分岐）。
+let JWKS_CACHE = { url: null, at: 0, keys: null };
+
 async function requireUser(request, env) {
   const auth = request.headers.get("authorization") || "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
   if (!token) throw httpError(401, "ログインが必要です");
-  const payload = await verifyJwtHS256(token, env.SUPABASE_JWT_SECRET);
+  const payload = await verifyJwt(token, env);
   if (!payload.sub) throw httpError(401, "無効なトークン");
   return payload.sub;
 }
 
-async function verifyJwtHS256(token, secret) {
+async function verifyJwt(token, env) {
   const parts = token.split(".");
   if (parts.length !== 3) throw httpError(401, "トークン形式が不正");
   const [h, p, s] = parts;
-  const key = await crypto.subtle.importKey(
-    "raw", new TextEncoder().encode(secret),
-    { name: "HMAC", hash: "SHA-256" }, false, ["verify"]
-  );
-  const ok = await crypto.subtle.verify("HMAC", key, b64urlToBytes(s), new TextEncoder().encode(`${h}.${p}`));
+  const header = JSON.parse(new TextDecoder().decode(b64urlToBytes(h)));
+  const data = new TextEncoder().encode(`${h}.${p}`);
+  const sig = b64urlToBytes(s);
+
+  let ok = false;
+  if (header.alg === "ES256") {
+    const jwk = await getJwk(env, header.kid);
+    if (!jwk) throw httpError(401, "署名鍵が見つかりません");
+    const key = await crypto.subtle.importKey(
+      "jwk", { kty: jwk.kty, crv: jwk.crv, x: jwk.x, y: jwk.y },
+      { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]
+    );
+    ok = await crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, key, sig, data);
+  } else if (header.alg === "HS256") {
+    if (!env.SUPABASE_JWT_SECRET) throw httpError(401, "HS256秘密が未設定");
+    const key = await crypto.subtle.importKey(
+      "raw", new TextEncoder().encode(env.SUPABASE_JWT_SECRET),
+      { name: "HMAC", hash: "SHA-256" }, false, ["verify"]
+    );
+    ok = await crypto.subtle.verify("HMAC", key, sig, data);
+  } else {
+    throw httpError(401, "未対応の署名方式: " + header.alg);
+  }
   if (!ok) throw httpError(401, "署名検証に失敗");
+
   const payload = JSON.parse(new TextDecoder().decode(b64urlToBytes(p)));
   if (payload.exp && payload.exp * 1000 < Date.now()) throw httpError(401, "トークン期限切れ");
   return payload;
+}
+
+// JWKS を取得（10分メモリキャッシュ・kidミス時は1回だけ強制リフレッシュ＝鍵ローテ対応）
+async function getJwk(env, kid) {
+  const base = (env.SUPABASE_URL || "").replace(/\/+$/, "");
+  if (!base) throw httpError(500, "SUPABASE_URL 未設定");
+  const url = base + "/auth/v1/.well-known/jwks.json";
+  const now = Date.now();
+  const fresh = JWKS_CACHE.url === url && JWKS_CACHE.keys && now - JWKS_CACHE.at < 600000;
+  if (!fresh) {
+    const r = await fetch(url);
+    if (!r.ok) throw httpError(401, "JWKS取得失敗");
+    JWKS_CACHE = { url, at: now, keys: (await r.json()).keys || [] };
+  }
+  let k = JWKS_CACHE.keys.find((x) => x.kid === kid);
+  if (!k && kid && fresh) {
+    const r = await fetch(url);
+    if (r.ok) { JWKS_CACHE = { url, at: now, keys: (await r.json()).keys || [] }; k = JWKS_CACHE.keys.find((x) => x.kid === kid); }
+  }
+  return k;
 }
 
 function b64urlToBytes(b64url) {

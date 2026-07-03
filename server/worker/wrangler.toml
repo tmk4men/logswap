@@ -9,14 +9,16 @@ compatibility_date = "2024-11-01"
 # R2 バケットのバインド（バケット名は自分のものに合わせる）
 [[r2_buckets]]
 binding = "MEDIA"
-bucket_name = "logswap-media"
+bucket_name = "logswap"
 
 [vars]
 # R2 公開URLのベース。カスタムドメイン推奨（例 https://media.example.com）。
 # とりあえず試すだけなら R2 の r2.dev 公開URL でも可。
-PUBLIC_BASE = "https://media.example.com"
+PUBLIC_BASE = "https://pub-516f4f8a73974ceeb18c14233b8e2dcb.r2.dev"
 # 本番はアプリのオリジンに絞る（例 "https://tmk4men.github.io"）。開発中は "*"。
 ALLOWED_ORIGIN = "*"
+# Supabase プロジェクトURL。ユーザートークン(ES256)検証用の JWKS 取得に使う。
+SUPABASE_URL = "https://pryabdockektzvghowcb.supabase.co"
 
 # 秘密情報はコマンドで登録（wrangler.toml には書かない）:
 #   npx wrangler secret put SUPABASE_JWT_SECRET
