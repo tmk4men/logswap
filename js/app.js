@@ -134,7 +134,7 @@
     if (isSub()) return Infinity;
     var s = getState();
     if (rollSwipeDay(s)) saveState(s);
-    var cap = (CONFIG.SWIPE_LIMIT || 30) + (s.swipeAdBonus || 0);
+    var cap = (CONFIG.SWIPE_LIMIT || 25) + (s.swipeAdBonus || 0);
     return Math.max(0, cap - (s.swipeUsed || 0));
   }
   function useSwipe() {
@@ -229,7 +229,7 @@
   }
   // 成立・未トーク（モザイク待機）のまま期限が過ぎた相手を消す。消えたら true。
   function pruneExpiredPending() {
-    var ms = (CONFIG.PENDING_EXPIRE_HOURS || 72) * 3600 * 1000;
+    var ms = (CONFIG.PENDING_EXPIRE_HOURS || 48) * 3600 * 1000;
     var now = Date.now();
     var changed = false;
     matches = matches.filter(function (m) {
