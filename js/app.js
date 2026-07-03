@@ -798,6 +798,14 @@
     openOverlay(document.getElementById("threadOverlay"));
   }
 
+  // 独自スタンプ（システム絵文字ではなく手描き風SVG。Setlogのかわいい雰囲気に寄せる）
+  var STAMP_SVGS = {
+    yes: '<svg viewBox="0 0 64 64" class="stk" aria-hidden="true"><path d="M32 53C15 40 10 27 19 19c5-4.4 11-2 13 3.4C34 17 40 14.6 45 19c9 8 4 21-13 34z" fill="#fb6f63"/><circle cx="26" cy="29" r="2.6" fill="#3a2b28"/><circle cx="38" cy="29" r="2.6" fill="#3a2b28"/><path d="M27 35q5 4 10 0" fill="none" stroke="#3a2b28" stroke-width="2.6" stroke-linecap="round"/></svg>',
+    no: '<svg viewBox="0 0 64 64" class="stk" aria-hidden="true"><circle cx="32" cy="33" r="22" fill="#b8d0ea"/><circle cx="25" cy="32" r="2.7" fill="#3a2b28"/><circle cx="39" cy="32" r="2.7" fill="#3a2b28"/><path d="M25 42q7 -5 14 0" fill="none" stroke="#3a2b28" stroke-width="2.7" stroke-linecap="round"/><ellipse cx="47" cy="23" rx="2.2" ry="3.3" fill="#7fb0dd"/></svg>',
+    smile: '<svg viewBox="0 0 64 64" class="stk" aria-hidden="true"><circle cx="32" cy="32" r="23" fill="#f6eccf"/><circle cx="24" cy="30" r="2.8" fill="#3a2b28"/><circle cx="40" cy="30" r="2.8" fill="#3a2b28"/><path d="M24 38q8 6 16 0" fill="none" stroke="#3a2b28" stroke-width="2.8" stroke-linecap="round"/><circle cx="18.5" cy="36" r="3.1" fill="#f4a7bd" opacity=".75"/><circle cx="45.5" cy="36" r="3.1" fill="#f4a7bd" opacity=".75"/></svg>'
+  };
+  function stampSvg(key) { return STAMP_SVGS[key] || esc(key); } // 旧データ（絵文字）は素通しで表示
+
   function renderThread(user) {
     var c = convo(user.id);
     var log = document.getElementById("threadLog");
@@ -807,7 +815,7 @@
       } else {
         log.innerHTML = c.msgs.map(function (m) {
           var cls = "bubble " + (m.from === "me" ? "me" : "them") + (m.kind === "stamp" ? " is-stamp" : "");
-          return '<div class="' + cls + '">' + (m.kind === "stamp" ? m.body : esc(m.body)) + "</div>";
+          return '<div class="' + cls + '">' + (m.kind === "stamp" ? stampSvg(m.body) : esc(m.body)) + "</div>";
         }).join("");
       }
       log.scrollTop = log.scrollHeight;
@@ -1009,7 +1017,7 @@
     // 擬似返信（デモ。実運用では相手の実メッセージに置き換え）
     setTimeout(function () {
       if (threadUser !== user) return;
-      var stamps = ["😊", "⭕"];
+      var stamps = ["smile", "yes"];
       var phrases = ["いいですね！", "こちらこそ！", "ありがとうございます！", "楽しみです"];
       var useStamp = Math.random() < 0.5;
       c.msgs.push(useStamp
