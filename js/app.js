@@ -439,8 +439,9 @@
     coachShown = false;
     // app.html では初回（プロフィール未登録）はプロフ入力から入る
     var gate = document.getElementById("profileSetup");
-    if (gate && !getProfile()) { // 新規：ハンドルID設定可・招待チップ空
+    if (gate && !getProfile()) { // 新規：ハンドルID設定可・招待チップ空・同意欄あり
       setHandleLocked(false);
+      setProfileFormMode(false);
       pendingInvites = []; renderInviteChips();
       var iin = document.getElementById("pf-invite-input"); if (iin) iin.value = "";
       setAppGated(true); return;
@@ -639,7 +640,7 @@
     if (!bar) return;
     var c = convo(user.id);
     var myTurns = c.msgs.filter(function (m) { return m.from === "me"; }).length;
-    var need = CONFIG.ID_EXCHANGE_MIN_TURNS || 3;
+    var need = (typeof CONFIG.ID_EXCHANGE_MIN_TURNS === "number") ? CONFIG.ID_EXCHANGE_MIN_TURNS : 3;
 
     if (c.revealed) {
       // 公開したIDは1つだけ（あなたの招待ID）。2人とものID公開は不要。
@@ -876,6 +877,17 @@
       } else note.hidden = true;
     }
   }
+  // プロフィール入力フォームのモード：初回登録 or 2回目以降の編集
+  // 編集時は「利用規約・年齢の同意」と「はじめる」文言を出さない。
+  function setProfileFormMode(isEdit) {
+    var consent = document.querySelector("#profileSetup .pf-consent");
+    if (consent) consent.hidden = !!isEdit;
+    var start = document.getElementById("pfStart");
+    if (start) start.textContent = isEdit ? "保存する" : "はじめる";
+    var h = document.querySelector("#profileSetup .ps-head h2");
+    if (h) h.textContent = isEdit ? "プロフィールを編集" : "プロフィールを作成";
+  }
+
   // ハンドルIDの入力ロック（一度設定したら変更不可）
   function setHandleLocked(locked) {
     var h = document.getElementById("pf-handle");
@@ -914,11 +926,12 @@
     setUploadState("pf-image", p.image ? "画像を変更" : "画像を選ぶ", !!p.image);
     setUploadState("pf-image2", p.image2 ? "画像を変更" : "画像を選ぶ", !!p.image2);
     setUploadState("pf-video", p.videoName ? "動画を変更" : "動画を選ぶ", !!p.videoName);
-    // 既存プロフィールの編集時は同意・年齢確認済みとして扱う
+    // 既存プロフィールの編集時は同意・年齢確認済みとして扱い、同意欄は出さない
     var agree = document.getElementById("pf-agree"); if (agree) agree.checked = true;
     var agreeErr = document.getElementById("pf-agree-err"); if (agreeErr) agreeErr.hidden = true;
     var age = document.getElementById("pf-age"); if (age) age.checked = true;
     var ageErr = document.getElementById("pf-age-err"); if (ageErr) ageErr.hidden = true;
+    setProfileFormMode(true);
     setAppGated(true);
   }
 
