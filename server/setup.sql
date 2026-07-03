@@ -173,10 +173,39 @@ as $$
   limit greatest(1, least(max_count, 100));
 $$;
 
+-- =====================================================================
+-- 退会：自分の auth.users を削除（全テーブルは auth.users を FK 参照＝cascade で全消去）
+-- profiles だけ消しても他は残るので、必ずこの RPC で消す。
+-- =====================================================================
+create or replace function public.delete_me()
+returns void
+language sql
+security definer
+set search_path = public, auth
+as $$
+  delete from auth.users where id = auth.uid();
+$$;
+revoke all on function public.delete_me() from public;
+grant execute on function public.delete_me() to authenticated;
 
 -- =====================================================================
--- RLS policies (policies.sql / storage section excluded)
+-- Realtime：トークと成立を live 配信（RLS準拠で当事者だけ受信）
 -- =====================================================================
+do $$
+begin
+  if not exists (select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename='messages') then
+    alter publication supabase_realtime add table public.messages;
+  end if;
+  if not exists (select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename='matches') then
+    alter publication supabase_realtime add table public.matches;
+  end if;
+end $$;
+-- RLS準拠の realtime 配信には行全体のイメージが要る（無いとRLS対象のINSERTが届かない）
+alter table public.messages replica identity full;
+alter table public.matches  replica identity full;
+
+
+-- ================= RLS policies (storage excluded) =================
 
 alter table public.profiles          enable row level security;
 alter table public.private_profiles  enable row level security;
@@ -212,10 +241,12 @@ create policy private_all on public.private_profiles
   for all to authenticated using (id = auth.uid()) with check (id = auth.uid());
 
 -- ---------------- likes ----------------
--- 自分が押したいいねだけ作成/削除。読み取りは「自分が関わる行」。
+-- 自分が押したいいねだけ作成/削除/参照。※「誰が自分をいいねしたか」は漏らさない
+-- （likee=自分 を読めると相互成立前に相手を特定できてしまうため liker=自分 のみ）。
+-- 相互成立の判定は SECURITY DEFINER のトリガーが行うのでこれで問題ない。
 drop policy if exists likes_select on public.likes;
 create policy likes_select on public.likes
-  for select to authenticated using (liker = auth.uid() or likee = auth.uid());
+  for select to authenticated using (liker = auth.uid());
 
 drop policy if exists likes_insert on public.likes;
 create policy likes_insert on public.likes

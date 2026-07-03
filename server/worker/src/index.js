@@ -54,9 +54,17 @@ async function handleUpload(request, env, url) {
   const contentType = (request.headers.get("content-type") || "").split(";")[0].trim();
   if (spec.types.indexOf(contentType) === -1) throw httpError(415, "対応していない形式です: " + contentType);
 
+  // サイズは本文をバッファする前に Content-Length で弾く（メモリ濫用の防止）
+  const clen = parseInt(request.headers.get("content-length") || "0", 10);
+  if (clen && clen > spec.maxBytes) throw httpError(413, "ファイルが大きすぎます");
+
   const buf = await request.arrayBuffer();
   if (buf.byteLength === 0) throw httpError(400, "本文が空です");
   if (buf.byteLength > spec.maxBytes) throw httpError(413, "ファイルが大きすぎます");
+  // content-type ヘッダは送信者が自由に付けられるので、画像は先頭バイト（マジックナンバー）で検査
+  if (kind === "image" && !imageSniffOk(contentType, new Uint8Array(buf))) {
+    throw httpError(415, "ファイルの中身が画像形式と一致しません");
+  }
 
   // 1人1本。固定キーで上書き（＝古いものは自動で置き換わる）
   const key = `${userId}/${kind}.${EXT[contentType]}`;
@@ -120,7 +128,18 @@ async function verifyJwt(token, env) {
 
   const payload = JSON.parse(new TextDecoder().decode(b64urlToBytes(p)));
   if (payload.exp && payload.exp * 1000 < Date.now()) throw httpError(401, "トークン期限切れ");
+  // ユーザートークンだけ受け付ける（他種のSupabase発行トークンを拒否）
+  if (payload.aud && payload.aud !== "authenticated") throw httpError(401, "対象外のトークン");
   return payload;
+}
+
+// 画像の先頭バイト検査（PNG/JPEG/WebP）。動画はサイズ制限のみで信頼する。
+function imageSniffOk(ct, b) {
+  if (ct === "image/png") return b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47;
+  if (ct === "image/jpeg") return b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff;
+  if (ct === "image/webp") return b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 &&
+    b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50;
+  return false;
 }
 
 // JWKS を取得（10分メモリキャッシュ・kidミス時は1回だけ強制リフレッシュ＝鍵ローテ対応）

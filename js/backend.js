@@ -157,11 +157,16 @@
       handle: row.handle || "",
       pref: row.pref || "",
       tags: row.tags || [],
-      photo: row.image_path || "",   // 実URL（空なら app 側で picsum フォールバック）
+      photo: row.image_path || ("u_" + row.id),   // 実URL。未設定でもユーザーごとに別のフォールバック画像
+      created_at: row.created_at,
       image2: row.image2_path || "",
       video: row.video_path || "",   // 実URL
       likesBack: false               // 実データでは相手の意思は不明
     };
+  }
+  function getProfileById(id) {
+    return sb.from("profiles").select("*").eq("id", id).maybeSingle()
+      .then(function (r) { return r.data ? mapUser(r.data) : null; });
   }
   function getSwipeQueue(max) {
     if (!ENABLED) return Promise.resolve([]);
@@ -217,6 +222,14 @@
     return sb.from("messages").insert({ match_id: matchId, sender: meId, kind: kind || "text", body: body })
       .then(function (r) { if (r.error) throw r.error; });
   }
+  // 新しい成立の購読（両者に届く。RLSで自分が当事者の行だけ受信）。cb(matchRow)。
+  function subscribeMatches(cb) {
+    var ch = sb.channel("matches")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "matches" },
+        function (payload) { cb(payload.new); })
+      .subscribe();
+    return function () { sb.removeChannel(ch); };
+  }
   // 新着メッセージの購読。cb(row) が呼ばれる。unsubscribe 関数を返す。
   function subscribeMessages(matchId, cb) {
     var ch = sb.channel("msg:" + matchId)
@@ -259,10 +272,11 @@
       .then(function (r) { if (r.error) throw r.error; });
   }
   function deleteAccount() {
-    // メディア削除 → プロフィール削除（cascade で likes/matches/messages/blocks/reports/exchanges）→ サインアウト
+    // メディア削除 → delete_me()（auth ユーザーを消して全テーブルを cascade 削除）→ サインアウト。
+    // profiles だけ消しても他テーブルは auth.users 参照なので残る。だから RPC で確実に全消去する。
     return deleteAllMedia()
-      .then(function () { return sb.from("profiles").delete().eq("id", meId); })
-      .then(function () { return sb.auth.signOut(); });
+      .then(function () { return sb.rpc("delete_me"); })
+      .then(function (r) { if (r && r.error) throw r.error; return sb.auth.signOut(); });
   }
 
   window.LogSwapBackend = {
@@ -272,9 +286,11 @@
     getMyProfile: getMyProfile,
     saveProfile: saveProfile,
     getSwipeQueue: getSwipeQueue,
+    getProfileById: getProfileById,
     like: like,
     findMatch: findMatch,
     listMatches: listMatches,
+    subscribeMatches: subscribeMatches,
     listMessages: listMessages,
     sendMessage: sendMessage,
     subscribeMessages: subscribeMessages,

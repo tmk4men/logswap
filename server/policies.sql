@@ -39,10 +39,12 @@ create policy private_all on public.private_profiles
   for all to authenticated using (id = auth.uid()) with check (id = auth.uid());
 
 -- ---------------- likes ----------------
--- 自分が押したいいねだけ作成/削除。読み取りは「自分が関わる行」。
+-- 自分が押したいいねだけ作成/削除/参照。※「誰が自分をいいねしたか」は漏らさない
+-- （likee=自分 を読めると相互成立前に相手を特定できてしまうため liker=自分 のみ）。
+-- 相互成立の判定は SECURITY DEFINER のトリガーが行うのでこれで問題ない。
 drop policy if exists likes_select on public.likes;
 create policy likes_select on public.likes
-  for select to authenticated using (liker = auth.uid() or likee = auth.uid());
+  for select to authenticated using (liker = auth.uid());
 
 drop policy if exists likes_insert on public.likes;
 create policy likes_insert on public.likes

@@ -130,7 +130,15 @@
   function hideUser(user) {
     if (!user) return;
     blockId(user.id);
-    if (BE) Backend.block(user.id).catch(function (e) { console.error("block failed", e); });
+    if (BE) {
+      Backend.block(user.id).catch(function (e) { console.error("block failed", e); });
+      // ブロックは成立も解除する（さもないと相手はまだメッセージでき、リロードで復活する）
+      var bc = convos[user.id];
+      if (bc && bc.matchId) {
+        if (bc._unsub) { try { bc._unsub(); } catch (e) {} }
+        Backend.deleteMatch(bc.matchId).catch(function (e) { console.error("unmatch on block failed", e); });
+      }
+    }
     matches = matches.filter(function (m) { return m.id !== user.id; });
     delete convos[user.id];
     if (users[index] && users[index].id === user.id) index++; // 表示中のカードなら次へ送る
@@ -608,6 +616,8 @@
       }
       return hydrateMatches();
     }).then(function () {
+      if (matchSub) { try { matchSub(); } catch (e) {} } // 退会後の再ログイン等で貼り直す
+      matchSub = Backend.subscribeMatches(handleNewMatch);
       setAppGated(false);
       showView("swipe");
       renderChat();
@@ -621,6 +631,20 @@
     });
   }
 
+  // 新しい成立が realtime で届いたとき（先にいいねした側もここで気づける）
+  var matchSub = null;
+  function handleNewMatch(row) {
+    if (!row) return;
+    var otherId = row.user_a === Backend.userId ? row.user_b : row.user_a;
+    if (!otherId) return;
+    convo(otherId).matchId = row.id;
+    if (matches.some(function (m) { return m.id === otherId; })) { renderChat(); return; }
+    Backend.getProfileById(otherId).then(function (u) {
+      if (!u || matches.some(function (m) { return m.id === u.id; })) return;
+      u.matchId = row.id;
+      registerMatch(u);
+    }).catch(function (e) { console.error("new match load failed", e); });
+  }
   // 成立相手をサーバーから読み込み matches / convos に反映
   function hydrateMatches() {
     return Backend.listMatches().then(function (list) {
@@ -946,15 +970,18 @@
     if (!slot) { renderThread(user); return; } // 公開できるIDが無い
     if (BE) {
       if (!c.matchId) return;
-      Backend.revealInvite(c.matchId, slot.code).then(function () {
+      var finalize = function () {
         slot.usedWith = user.id;
         prof.inviteIds = invites;
         saveProfile(prof);                        // localStorage ミラー
-        return Backend.saveProfile(prof, {});     // 招待プールの使用済みをDBに反映
-      }).then(function () {
         c.revealed = true; c.myGivenId = slot.code;
         renderThread(user); renderChat();
-      }).catch(function (e) { console.error("reveal failed", e); });
+        Backend.saveProfile(prof, {}).catch(function (e) { console.error("invite persist failed", e); }); // 使用済みをDBに反映
+      };
+      Backend.revealInvite(c.matchId, slot.code).then(finalize).catch(function (e) {
+        if (e && e.code === "23505") finalize(); // 既に公開済み＝成功扱い（使い切りはPKで担保）
+        else console.error("reveal failed", e);
+      });
       return;
     }
     slot.usedWith = user.id;                    // 使い切り：二度と送信されない
@@ -968,17 +995,28 @@
   }
 
   // バックエンド接続時：トークを開いたら過去メッセージ＋公開状態を読み、新着を購読
+  function rowToMsg(row) {
+    return {
+      id: row.id, from: row.sender === Backend.userId ? "me" : "them",
+      kind: row.kind, body: row.body, ts: Date.parse(row.created_at || "") || 0
+    };
+  }
+  function sortMsgs(c) { c.msgs.sort(function (a, b) { return (a.ts || 0) - (b.ts || 0); }); }
+
   function hydrateThread(user) {
     var c = convo(user.id);
     if (!c.matchId || c._hydrated) return;
     c._hydrated = true;
     c.seen = c.seen || {};
+    // 先に購読してから履歴を読む（取得中に届いた新着を取りこぼさず、seenも消さない）
+    c._unsub = Backend.subscribeMessages(c.matchId, function (row) { appendServerMsg(user, row); });
     Backend.listMessages(c.matchId).then(function (rows) {
-      c.msgs = []; c.seen = {};
       rows.forEach(function (row) {
+        if (c.seen[row.id]) return;   // realtimeで既に入った分は重複させない
         c.seen[row.id] = 1;
-        c.msgs.push({ id: row.id, from: row.sender === Backend.userId ? "me" : "them", kind: row.kind, body: row.body });
+        c.msgs.push(rowToMsg(row));
       });
+      sortMsgs(c);
       if (threadUser === user) renderThread(user);
       updateTabIndicators();
     }).catch(function (e) { console.error("load messages failed", e); });
@@ -987,14 +1025,14 @@
       if (r.theirs) c.theirId = r.theirs;
       if (threadUser === user) renderThread(user);
     }).catch(function () {});
-    c._unsub = Backend.subscribeMessages(c.matchId, function (row) { appendServerMsg(user, row); });
   }
   function appendServerMsg(user, row) {
     var c = convo(user.id);
     c.seen = c.seen || {};
     if (c.seen[row.id]) return;
     c.seen[row.id] = 1;
-    c.msgs.push({ id: row.id, from: row.sender === Backend.userId ? "me" : "them", kind: row.kind, body: row.body });
+    c.msgs.push(rowToMsg(row));
+    sortMsgs(c);
     if (threadUser === user) renderThread(user);
     updateTabIndicators();
     var chat = document.getElementById("view-chat");
