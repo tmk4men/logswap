@@ -52,11 +52,15 @@
   var controlsEl = document.getElementById("controls");
   var coachEl = document.getElementById("coach");
 
-  // 画像URL。実URL（R2など http/https）はそのまま返し、そうでなければ picsum のシード扱い。
-  // （デモのモックは seed 文字列、バックエンド実ユーザーは R2 の公開URL）
+  // 画像なしのときの人型プレースホルダ（丸アイコンに“偽の写真”を出さないため）
+  var AVATAR_PLACEHOLDER = "data:image/svg+xml;utf8," + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#2c2c37"/><circle cx="50" cy="41" r="17" fill="#6b6875"/><path d="M20 86c0-16 14-25 30-25s30 9 30 25z" fill="#6b6875"/></svg>');
+  // 画像URL。実URL（R2など http/https）はそのまま。画像なし（空）は人型プレースホルダ。
+  // 非空の seed（デモのモック）だけ picsum を使う。※丸アイコンは実プロフィール画像のみ。
   function photoUrl(seed, w, h) {
     if (typeof seed === "string" && /^https?:\/\//.test(seed)) return seed;
-    return "https://picsum.photos/seed/" + encodeURIComponent(seed || "logswap") + "/" + w + "/" + h + ".webp";
+    if (!seed) return AVATAR_PLACEHOLDER;
+    return "https://picsum.photos/seed/" + encodeURIComponent(seed) + "/" + w + "/" + h + ".webp";
   }
 
   // ---------- プロフィール（初回入力 → localStorage に保存） ----------
@@ -660,9 +664,11 @@
     });
   }
 
-  // スワイプ配信をサーバーから取得して差し替え
+  // スワイプ配信をサーバーから取得して差し替え（プレミアムはしぼり込み条件を反映）
   function refreshDeck() {
-    return Backend.getSwipeQueue(50).then(function (list) {
+    var s = getState();
+    var f = isSub() ? { pref: s.fltPref || "", gender: s.fltGender || "" } : {};
+    return Backend.getSwipeQueue(50, f).then(function (list) {
       users = interleaveAds(list.filter(function (u) { return !isBlocked(u.id); }));
       index = 0;
       render();
@@ -693,6 +699,8 @@
     }
     renderMyAvatar();
     renderSwipeBoost();
+    var searchBtn = document.getElementById("searchBtn");
+    if (searchBtn) searchBtn.hidden = gated;
   }
 
   // ---------- タブ切替（スワイプ / ログ・チャット / プロフィール）----------
@@ -1177,8 +1185,8 @@
     var av = p.image
       ? '<img class="ps-av" src="' + p.image + '" alt="" />'
       : '<div class="ps-av ps-av-empty"><svg viewBox="0 0 24 24" width="40" height="40" class="ico-line"><circle cx="12" cy="8" r="4"/><path d="M5 20c0-3.5 3.1-6 7-6s7 2.5 7 6"/></svg></div>';
-    var tags = (p.tags || []).map(function (t) {
-      return '<span class="tag">#' + esc(t) + "</span>";
+    var tags = (p.tags || []).map(function (tg) {
+      return '<span class="tag">#' + esc(t(tg)) + "</span>";
     }).join("");
     box.innerHTML =
       '<div class="ps-card">' +
@@ -1186,7 +1194,7 @@
         '<div class="ps-name">' + esc(p.name || t("未設定")) + "</div>" +
         (p.handle ? '<div class="ps-handle">' + esc(p.handle) + "</div>" : "") +
         (p.bio ? '<div class="ps-bio">' + esc(p.bio) + "</div>" : "") +
-        '<div class="ps-meta">' + (p.pref ? esc(p.pref) : t("地域未設定")) + "</div>" +
+        '<div class="ps-meta">' + (p.pref ? esc(t(p.pref)) : t("地域未設定")) + "</div>" +
         (tags ? '<div class="ps-tags">' + tags + "</div>" : "") +
         (p.image2 ? '<img class="ps-sub" src="' + p.image2 + '" alt="サブ画像" />' : "") +
         '<div class="ps-note">' + t("ログの動画：") + (p.videoName ? t("設定済み") : t("未設定")) + "</div>" +
@@ -1510,7 +1518,7 @@
   // ---------- オーバーレイ開閉＋フォーカス管理（a11y） ----------
   var lastFocused = null;
   // 手前（最前面）から順に。フォーカストラップ・背景クリック・Escで使う
-  var OVERLAY_IDS = ["boostOverlay", "limitOverlay", "unmatchOverlay", "deleteOverlay", "blockOverlay", "reportOverlay", "policyOverlay",
+  var OVERLAY_IDS = ["filterOverlay", "boostOverlay", "limitOverlay", "unmatchOverlay", "deleteOverlay", "blockOverlay", "reportOverlay", "policyOverlay",
     "termsOverlay", "previewOverlay", "logViewer", "threadOverlay", "matchOverlay"];
 
   function focusables(el) {
@@ -1612,10 +1620,10 @@
     document.getElementById("viewerHead").innerHTML =
       '<img class="viewer-av" src="' + photoUrl(user.photo, 120, 120) + '" width="120" height="120" alt="" />' +
       '<div><div class="viewer-name" id="viewerName">' + esc(user.name) + "</div>" +
-      '<div class="viewer-vibe">' + (user.pref ? esc(user.pref) : "") +
+      '<div class="viewer-vibe">' + (user.pref ? esc(t(user.pref)) : "") +
         (user.vibe ? "・" + esc(user.vibe) : "") + "</div></div>";
-    var tags = (user.tags || []).map(function (t) {
-      return '<span class="tag">#' + esc(t) + "</span>";
+    var tags = (user.tags || []).map(function (tg) {
+      return '<span class="tag">#' + esc(t(tg)) + "</span>";
     }).join("");
     document.getElementById("viewerTimeline").innerHTML =
       '<p class="viewer-bio">' + esc(user.bio || "") + "</p>" +
@@ -1669,8 +1677,70 @@
     });
   }
 
+  // 英語表示のときは「都道府県」の選択を「国名」に差し替える（海外ユーザー向け）
+  var COUNTRIES_EN = ["United States", "United Kingdom", "Canada", "Australia", "Japan", "China",
+    "South Korea", "Taiwan", "Hong Kong", "Singapore", "India", "Indonesia", "Philippines", "Thailand",
+    "Vietnam", "Malaysia", "Germany", "France", "Italy", "Spain", "Netherlands", "Sweden", "Switzerland",
+    "Poland", "Russia", "Brazil", "Mexico", "Argentina", "Turkey", "Saudi Arabia", "United Arab Emirates",
+    "Egypt", "South Africa", "New Zealand", "Ireland", "Norway", "Denmark", "Finland", "Portugal", "Greece",
+    "Austria", "Belgium", "Czechia", "Ukraine", "Nigeria", "Kenya", "Colombia", "Chile", "Peru", "Other"];
+  function localizeRegionSelect() {
+    if (!window.I18N || window.I18N.lang !== "en") return;
+    var sel = document.getElementById("pf-pref");
+    if (!sel) return;
+    var head = '<option value="">' + window.I18N.t("選択してください") + "</option>" +
+               '<option value="">' + window.I18N.t("選択しない") + "</option>";
+    sel.innerHTML = head + COUNTRIES_EN.map(function (c) { return "<option>" + c + "</option>"; }).join("");
+  }
+
+  // 相手をしぼり込む（プレミアム限定）。非会員には「プレミアムのみ」を表示。
+  function openFilterDialog() {
+    var ov = document.getElementById("filterOverlay");
+    if (!ov) return;
+    var locked = document.getElementById("filterLocked");
+    var body = document.getElementById("filterBody");
+    var apply = document.getElementById("filterApply");
+    var sub = isSub();
+    if (locked) locked.hidden = sub;
+    if (body) body.style.display = sub ? "" : "none";
+    if (apply) apply.hidden = !sub;
+    if (sub) {
+      var s = getState();
+      var g = document.getElementById("filt-gender"); if (g) g.value = s.fltGender || "";
+      var p = document.getElementById("filt-pref"); if (p) p.value = s.fltPref || "";
+    }
+    openOverlay(ov);
+  }
+
   // ---------- イベント結線 ----------
   function bindControls() {
+    // しぼり込みの地域選択をプロフィールの地域（＝言語で都道府県/国名）から複製
+    var filtPref = document.getElementById("filt-pref");
+    if (filtPref) {
+      var prefSrc = document.getElementById("pf-pref");
+      if (prefSrc) Array.prototype.forEach.call(prefSrc.querySelectorAll("option"), function (o) {
+        if (!o.value) return;
+        var opt = document.createElement("option"); opt.value = o.value; opt.textContent = o.textContent;
+        filtPref.appendChild(opt);
+      });
+    }
+    var searchBtn = document.getElementById("searchBtn");
+    if (searchBtn) searchBtn.addEventListener("click", openFilterDialog);
+    var filterApply = document.getElementById("filterApply");
+    if (filterApply) filterApply.addEventListener("click", function () {
+      if (!isSub()) return;
+      var s = getState();
+      var g = document.getElementById("filt-gender"); var p = document.getElementById("filt-pref");
+      s.fltGender = g ? g.value : ""; s.fltPref = p ? p.value : ""; saveState(s);
+      var fg = document.getElementById("flt-gender"); if (fg) fg.value = s.fltGender; // プロフィール側と同期
+      var fp = document.getElementById("flt-pref"); if (fp) fp.value = s.fltPref;
+      closeOverlay(document.getElementById("filterOverlay"));
+      rebuildDeck();
+    });
+    var filterCancel = document.getElementById("filterCancel");
+    if (filterCancel) filterCancel.addEventListener("click", function () {
+      closeOverlay(document.getElementById("filterOverlay"));
+    });
     document.getElementById("yesBtn").onclick = function () { swipeTop("yes"); };
     document.getElementById("noBtn").onclick = function () { swipeTop("no"); };
     document.getElementById("infoBtn").onclick = function () {
@@ -2134,6 +2204,7 @@
   }
 
   if (window.I18N) window.I18N.applyStatic(); // 静的HTMLを言語に合わせて翻訳
+  localizeRegionSelect();                     // 英語時は都道府県→国名に
   bindControls();
   init();
   setupReveal();

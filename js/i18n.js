@@ -111,6 +111,27 @@
 
     // ---- 言語切替 ----
     "English": "English", "日本語": "日本語", "言語": "Language",
+    "相手をしぼり込む": "Filter partners", "この機能はプレミアム会員のみ利用できます。": "This feature is for Premium members only.",
+    "こだわらない": "Any", "住んでいる地域": "Region", "この条件で表示": "Apply filter",
+
+    // ---- ハッシュタグ（値。#接頭辞は走査で自動付与） ----
+    "朝活": "Morning", "カフェ": "Cafe", "音楽": "Music", "映画": "Movies", "読書": "Reading",
+    "写真": "Photography", "散歩": "Walking", "筋トレ": "Workout", "自炊": "Cooking", "ゲーム": "Gaming",
+    "旅": "Travel", "お菓子": "Sweets", "アニメ": "Anime", "ファッション": "Fashion",
+    "アウトドア": "Outdoors", "サウナ": "Sauna",
+
+    // ---- 都道府県 ----
+    "北海道": "Hokkaido", "青森県": "Aomori", "岩手県": "Iwate", "宮城県": "Miyagi", "秋田県": "Akita",
+    "山形県": "Yamagata", "福島県": "Fukushima", "茨城県": "Ibaraki", "栃木県": "Tochigi", "群馬県": "Gunma",
+    "埼玉県": "Saitama", "千葉県": "Chiba", "東京都": "Tokyo", "神奈川県": "Kanagawa", "新潟県": "Niigata",
+    "富山県": "Toyama", "石川県": "Ishikawa", "福井県": "Fukui", "山梨県": "Yamanashi", "長野県": "Nagano",
+    "岐阜県": "Gifu", "静岡県": "Shizuoka", "愛知県": "Aichi", "三重県": "Mie", "滋賀県": "Shiga",
+    "京都府": "Kyoto", "大阪府": "Osaka", "兵庫県": "Hyogo", "奈良県": "Nara", "和歌山県": "Wakayama",
+    "鳥取県": "Tottori", "島根県": "Shimane", "岡山県": "Okayama", "広島県": "Hiroshima", "山口県": "Yamaguchi",
+    "徳島県": "Tokushima", "香川県": "Kagawa", "愛媛県": "Ehime", "高知県": "Kochi", "福岡県": "Fukuoka",
+    "佐賀県": "Saga", "長崎県": "Nagasaki", "熊本県": "Kumamoto", "大分県": "Oita", "宮崎県": "Miyazaki",
+    "鹿児島県": "Kagoshima", "沖縄県": "Okinawa",
+
     "。": "", "人": ""
   };
 
@@ -146,7 +167,16 @@
       if (!v) return;
       var trimmed = v.trim();
       if (!trimmed) return;
-      if (DICT[trimmed] != null) node.nodeValue = v.replace(trimmed, DICT[trimmed]);
+      if (DICT[trimmed] != null) { node.nodeValue = v.replace(trimmed, DICT[trimmed]); return; }
+      // "#タグ" → "#Tag"
+      if (trimmed.charAt(0) === "#" && DICT[trimmed.slice(1)] != null) {
+        node.nodeValue = v.replace(trimmed, "#" + DICT[trimmed.slice(1)]);
+      }
+    });
+    // 長文（インラインタグ入り）は data-i18n-html="キー" で innerHTML ごと差し替え
+    Array.prototype.forEach.call(root.querySelectorAll("[data-i18n-html]"), function (el) {
+      var k = el.getAttribute("data-i18n-html");
+      if (DICT[k] != null) el.innerHTML = DICT[k];
     });
     ["placeholder", "aria-label", "title", "alt"].forEach(function (attr) {
       Array.prototype.forEach.call(root.querySelectorAll("[" + attr + "]"), function (el) {

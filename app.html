@@ -32,13 +32,13 @@
   <meta name="twitter:description" content="ログを交換する相手を探す。スワイプして、おたがいOKでログを見せ合おう。" />
   <meta name="twitter:image" content="https://tmk4men.github.io/logswap/assets/og.png" />
 
-  <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png?v=20260703r" />
-  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png?v=20260703r" />
-  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20260703r" />
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png?v=20260703s" />
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png?v=20260703s" />
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20260703s" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700&family=M+PLUS+Rounded+1c:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=20260703r" />
+  <link rel="stylesheet" href="css/style.css?v=20260703s" />
 </head>
 <body class="app-page">
   <div class="app-shell">
@@ -49,6 +49,9 @@
         <span class="brand-word">LogSwap</span>
       </span>
       <span class="app-bar-spacer" aria-hidden="true"></span>
+      <button class="app-search" id="searchBtn" type="button" aria-label="相手をしぼり込む" hidden>
+        <svg viewBox="0 0 24 24" width="21" height="21" aria-hidden="true" class="ico-line"><circle cx="11" cy="11" r="7"/><path d="M20.5 20.5l-4.2-4.2"/></svg>
+      </button>
       <button class="my-avatar" id="myAvatar" type="button" aria-label="プロフィール" hidden></button>
     </header>
 
@@ -550,6 +553,36 @@
     </div>
   </div>
 
+  <!-- 相手をしぼり込む（プレミアム限定） -->
+  <div class="overlay" id="filterOverlay" hidden>
+    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="filterTitle">
+      <h2 class="policy-title" id="filterTitle">相手をしぼり込む</h2>
+      <p class="report-sub filter-locked" id="filterLocked" hidden>この機能はプレミアム会員のみ利用できます。</p>
+      <div id="filterBody">
+        <div class="pf-field">
+          <label for="filt-gender">性別</label>
+          <div class="pf-select-wrap">
+            <select class="pf-input" id="filt-gender">
+              <option value="">こだわらない</option>
+              <option value="female">女性</option>
+              <option value="male">男性</option>
+            </select>
+          </div>
+        </div>
+        <div class="pf-field">
+          <label for="filt-pref">住んでいる地域</label>
+          <div class="pf-select-wrap">
+            <select class="pf-input" id="filt-pref"><option value="">こだわらない</option></select>
+          </div>
+        </div>
+      </div>
+      <div class="dialog-actions">
+        <button class="btn-primary" id="filterApply" type="button">この条件で表示</button>
+        <button class="btn-ghost" id="filterCancel" type="button">閉じる</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ブースト使用 -->
   <div class="overlay" id="boostOverlay" hidden>
     <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="boostDlgTitle">
@@ -562,13 +595,13 @@
     </div>
   </div>
 
-  <script src="js/config.js?v=20260703r"></script>
-  <script src="js/i18n.js?v=20260703r"></script>
-  <script src="js/vendor/supabase.js?v=20260703r"></script>
-  <script src="js/backend.js?v=20260703r"></script>
-  <script src="js/ads.js?v=20260703r"></script>
-  <script src="js/purchases.js?v=20260703r"></script>
-  <script src="js/data.js?v=20260703r"></script>
-  <script src="js/app.js?v=20260703r"></script>
+  <script src="js/config.js?v=20260703s"></script>
+  <script src="js/i18n.js?v=20260703s"></script>
+  <script src="js/vendor/supabase.js?v=20260703s"></script>
+  <script src="js/backend.js?v=20260703s"></script>
+  <script src="js/ads.js?v=20260703s"></script>
+  <script src="js/purchases.js?v=20260703s"></script>
+  <script src="js/data.js?v=20260703s"></script>
+  <script src="js/app.js?v=20260703s"></script>
 </body>
 </html>

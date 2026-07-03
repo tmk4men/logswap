@@ -1,8 +1,6 @@
 -- =====================================================================
 -- LogSwap セットアップ（貼るだけ版・自動生成）
--- Supabase の SQL Editor に全部貼って「Run」1回でOK。
--- schema.sql + policies.sql を結合（R2構成では不要なストレージ節は除外）。
--- ※ ライブDBは server/migrations/*.sql を随時適用済み。これは新規構築用。
+-- schema.sql + policies.sql（storage節除外）。ライブDBはmigrations適用済み。
 -- =====================================================================
 
 
@@ -150,7 +148,10 @@ create trigger trg_like_match
 -- ブロックした行」も見て双方向除外するため。返すのは公開 profiles のみ、絞り込みは
 -- auth.uid() 基準なので情報漏れはない。set search_path で definer の安全性を担保。
 -- =====================================================================
-create or replace function public.get_swipe_queue(max_count int default 30)
+-- want_pref/want_gender はプレミアムのしぼり込み。definer なので private_profiles.gender を
+-- 参照して絞り込めるが gender は返さない（非公開のまま）。
+drop function if exists public.get_swipe_queue(int);
+create or replace function public.get_swipe_queue(max_count int default 30, want_pref text default null, want_gender text default null)
 returns setof public.profiles
 language sql
 stable
@@ -160,6 +161,10 @@ as $$
   select p.*
   from public.profiles p
   where p.id <> auth.uid()
+    and (want_pref is null or want_pref = '' or p.pref = want_pref)
+    and (want_gender is null or want_gender = '' or exists (
+      select 1 from public.private_profiles pp where pp.id = p.id and pp.gender = want_gender
+    ))
     and not exists (
       select 1 from public.likes l
       where l.liker = auth.uid() and l.likee = p.id
@@ -205,7 +210,7 @@ alter table public.messages replica identity full;
 alter table public.matches  replica identity full;
 
 
--- ================= RLS policies (storage excluded) =================
+-- ===== RLS policies (storage excluded) =====
 
 alter table public.profiles          enable row level security;
 alter table public.private_profiles  enable row level security;

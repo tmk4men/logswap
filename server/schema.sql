@@ -142,7 +142,10 @@ create trigger trg_like_match
 -- ブロックした行」も見て双方向除外するため。返すのは公開 profiles のみ、絞り込みは
 -- auth.uid() 基準なので情報漏れはない。set search_path で definer の安全性を担保。
 -- =====================================================================
-create or replace function public.get_swipe_queue(max_count int default 30)
+-- want_pref/want_gender はプレミアムのしぼり込み。definer なので private_profiles.gender を
+-- 参照して絞り込めるが gender は返さない（非公開のまま）。
+drop function if exists public.get_swipe_queue(int);
+create or replace function public.get_swipe_queue(max_count int default 30, want_pref text default null, want_gender text default null)
 returns setof public.profiles
 language sql
 stable
@@ -152,6 +155,10 @@ as $$
   select p.*
   from public.profiles p
   where p.id <> auth.uid()
+    and (want_pref is null or want_pref = '' or p.pref = want_pref)
+    and (want_gender is null or want_gender = '' or exists (
+      select 1 from public.private_profiles pp where pp.id = p.id and pp.gender = want_gender
+    ))
     and not exists (
       select 1 from public.likes l
       where l.liker = auth.uid() and l.likee = p.id

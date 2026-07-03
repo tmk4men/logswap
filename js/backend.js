@@ -157,7 +157,7 @@
       handle: row.handle || "",
       pref: row.pref || "",
       tags: row.tags || [],
-      photo: row.image_path || ("u_" + row.id),   // 実URL。未設定でもユーザーごとに別のフォールバック画像
+      photo: row.image_path || "",   // 実URL。未設定なら空＝丸アイコンは人型プレースホルダ（偽写真を出さない）
       created_at: row.created_at,
       image2: row.image2_path || "",
       video: row.video_path || "",   // 実URL
@@ -168,9 +168,15 @@
     return sb.from("profiles").select("*").eq("id", id).maybeSingle()
       .then(function (r) { return r.data ? mapUser(r.data) : null; });
   }
-  function getSwipeQueue(max) {
+  // filter = { pref, gender }（プレミアムのしぼり込み。空なら全件）
+  function getSwipeQueue(max, filter) {
     if (!ENABLED) return Promise.resolve([]);
-    return sb.rpc("get_swipe_queue", { max_count: max || 30 }).then(function (r) {
+    filter = filter || {};
+    return sb.rpc("get_swipe_queue", {
+      max_count: max || 30,
+      want_pref: filter.pref || null,
+      want_gender: filter.gender || null
+    }).then(function (r) {
       if (r.error) throw r.error;
       return (r.data || []).map(mapUser);
     });
