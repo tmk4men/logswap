@@ -760,6 +760,7 @@
     if (!c.revealed && myTurns >= (CONFIG.MSG_MAX_TURNS || 10)) return;
     c.msgs.push({ from: "me", kind: kind, body: body });
     renderThread(user);
+    updateTabIndicators(); // 送信したのでトークタブのバッジを更新
     // 擬似返信（デモ。実運用では相手の実メッセージに置き換え）
     setTimeout(function () {
       if (threadUser !== user) return;
@@ -844,10 +845,16 @@
   }
   // タブのインジケータ：チャットの赤い点＋「いいねされた人数」の赤い数字
   function updateTabIndicators() {
-    var dot = document.getElementById("chatDot");
-    // 成立したのにまだトークしていない相手がいる印
-    var pending = matches.filter(function (m) { return !(convos[m.id] && convos[m.id].open); }).length;
-    if (dot) dot.hidden = pending === 0;
+    var badge = document.getElementById("chatBadge");
+    // 成立したのに自分がまだトークを送っていない相手の人数
+    var untalked = matches.filter(function (m) {
+      var c = convos[m.id];
+      return !c || !c.msgs.some(function (msg) { return msg.from === "me"; });
+    }).length;
+    if (badge) {
+      if (untalked > 0) { badge.hidden = false; badge.textContent = untalked; }
+      else badge.hidden = true;
+    }
     var lb = document.getElementById("likesBadge");
     if (lb) {
       var liked = users.filter(function (u) { return u.likesBack; }).length - matches.length;
