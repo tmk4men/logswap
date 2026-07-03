@@ -37,8 +37,8 @@
     // ── 価格（表示用。実課金はストアのIAPで設定。ここは唯一の表示ソース）──
     PRICE_SUB_MONTH: "¥550",   // プレミアム月額（月額のみ）
     PRICE_BOOST: "¥250",       // ブースト30分（単発）
-    PRICE_MSG_SLOTS: "¥120",   // トーク枠追加（単発）
     PRICE_SWIPE: "¥120",       // スワイプ+5（単発）
+    // ※トーク枠は「動画広告 or プレミアム」で解放（有料販売なし）
 
     // ── 課金（IAP）── 既定OFF＝デモ（購入は即成功扱い）。
     // 本番化：Capacitorの課金プラグインを入れて IAP_ENABLED:true、
@@ -47,7 +47,6 @@
     IAP_PRODUCTS: {
       sub_month: "logswap_premium_month",
       boost: "logswap_boost_30m",
-      msg_slots: "logswap_talkslots_3",
       swipe: "logswap_swipe_5"
     },
 
