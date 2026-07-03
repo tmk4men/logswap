@@ -32,19 +32,16 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700&family=M+PLUS+Rounded+1c:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=20260703e" />
+  <link rel="stylesheet" href="css/style.css?v=20260703g" />
 </head>
 <body class="app-page">
   <div class="app-shell">
     <!-- App bar -->
     <header class="app-bar">
-      <a class="app-back" href="index.html" aria-label="紹介ページへ戻る">
-        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" class="ico-line"><path d="M15 6l-6 6 6 6"/></svg>
-      </a>
-      <a class="brand" href="index.html" aria-label="LogSwap ホーム">
+      <span class="brand" aria-label="LogSwap">
         <svg class="brand-glyph" viewBox="0 0 24 24" aria-hidden="true" width="20" height="20"><path d="M7 7h9l-2.5-2.5M17 17H8l2.5 2.5"/></svg>
         <span class="brand-word">LogSwap</span>
-      </a>
+      </span>
       <span class="app-bar-spacer" aria-hidden="true"></span>
     </header>
 
@@ -92,9 +89,12 @@
         </div>
 
         <div class="pf-field">
-          <label for="pf-invites">Setlogの招待ID（複数可・1行に1つ）</label>
-          <textarea class="pf-input pf-textarea" id="pf-invites" rows="3" autocomplete="off"
-            placeholder="グループの招待IDを1行に1つ貼り付け"></textarea>
+          <label for="pf-invite-input">Setlogの招待ID（複数可）</label>
+          <div class="invite-box" id="inviteBox">
+            <div class="invite-chips" id="inviteChips"></div>
+            <input class="invite-input" id="pf-invite-input" type="text" autocomplete="off"
+              inputmode="text" enterkeyhint="done" placeholder="招待IDを入力" />
+          </div>
           <p class="pf-hint">交換した招待IDは二度と送信されません。</p>
           <p class="pf-hint" id="pf-invites-used" hidden></p>
         </div>
@@ -104,6 +104,7 @@
           <div class="pf-select-wrap">
             <select class="pf-input" id="pf-pref">
             <option value="">選択してください</option>
+            <option value="">選択しない</option>
             <option>北海道</option><option>青森県</option><option>岩手県</option><option>宮城県</option><option>秋田県</option><option>山形県</option><option>福島県</option>
             <option>茨城県</option><option>栃木県</option><option>群馬県</option><option>埼玉県</option><option>千葉県</option><option>東京都</option><option>神奈川県</option>
             <option>新潟県</option><option>富山県</option><option>石川県</option><option>福井県</option><option>山梨県</option><option>長野県</option>
@@ -131,7 +132,7 @@
         </div>
 
         <div class="pf-field">
-          <span class="pf-field-label">ハッシュタグ（複数選べます）</span>
+          <span class="pf-field-label">ハッシュタグ（3つまで選べます）</span>
           <div class="pf-chips" id="pf-tags">
             <button class="pf-chip" type="button" data-tag="朝活">#朝活</button>
             <button class="pf-chip" type="button" data-tag="カフェ">#カフェ</button>
@@ -150,6 +151,7 @@
             <button class="pf-chip" type="button" data-tag="アウトドア">#アウトドア</button>
             <button class="pf-chip" type="button" data-tag="サウナ">#サウナ</button>
           </div>
+          <p class="pf-hint pf-locked-note" id="pf-tags-max" hidden>ハッシュタグは3つまでです。</p>
         </div>
 
         <div class="pf-field">
@@ -158,6 +160,15 @@
           <label class="pf-upload" for="pf-image">
             <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" class="ico-line"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 15l-5-4-8 7"/></svg>
             <span id="pf-image-label">画像を選ぶ</span>
+          </label>
+        </div>
+
+        <div class="pf-field">
+          <span class="pf-field-label">サブ画像（任意・1枚）</span>
+          <input class="pf-file-input" id="pf-image2" type="file" accept="image/*" aria-label="サブ画像を選ぶ" />
+          <label class="pf-upload" for="pf-image2">
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" class="ico-line"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 15l-5-4-8 7"/></svg>
+            <span id="pf-image2-label">画像を選ぶ</span>
           </label>
         </div>
 
@@ -205,7 +216,10 @@
 
     <!-- ログ・チャットタブ -->
     <section class="view view-pad" id="view-chat" hidden>
-      <h2 class="view-title">ログ</h2>
+      <div class="chat-head">
+        <h2 class="view-title">ログ<span class="chat-count" id="slotText">（0/5）</span></h2>
+        <button class="chat-unlock" id="slotAddBtn" type="button">上限解放</button>
+      </div>
 
       <!-- 成立したがまだトークしていない相手（モザイクで上部に） -->
       <div class="pending-wrap" id="pendingWrap" hidden>
@@ -214,12 +228,6 @@
           <span class="pending-count" id="pendingCount"></span>
         </div>
         <div class="pending-strip" id="pendingStrip"></div>
-      </div>
-
-      <!-- トーク枠のインジケータ -->
-      <div class="slot-bar" id="slotBar">
-        <span class="slot-text" id="slotText">トークできる人数 0/3</span>
-        <button class="slot-add" id="slotAddBtn" type="button">枠を増やす</button>
       </div>
 
       <div class="chat-list" id="chatList"></div>
@@ -270,7 +278,7 @@
 
         <button class="btn-ghost sm boost-btn" id="boostBtn" type="button">
           <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" class="ico-line"><path d="M13 3L5 13h5l-1 8 8-11h-5z"/></svg>
-          <span id="boostLabel">マッチ率アップ（30分）</span>
+          <span id="boostLabel">ブースト（30分）</span>
         </button>
         <p class="boost-note" id="boostNote" hidden></p>
       </div>
@@ -280,19 +288,16 @@
 
     <!-- 下部タブ -->
     <nav class="tabbar" id="tabbar" aria-label="メインナビ" hidden>
-      <button class="tab is-active" type="button" data-view="swipe" aria-selected="true">
-        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" class="ico-line"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="M8 8h8M8 12h8"/></svg>
-        <span>スワイプ</span>
+      <button class="tab is-active" type="button" data-view="swipe" aria-selected="true" aria-label="スワイプ">
+        <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="ico-line"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="M8 8h8M8 12h8"/></svg>
         <span class="tab-badge" id="likesBadge" hidden aria-label="あなたをいいねした人数">0</span>
       </button>
-      <button class="tab" type="button" data-view="chat" aria-selected="false">
-        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" class="ico-line"><path d="M4 5h16v11H8l-4 4z"/></svg>
-        <span>ログ</span>
+      <button class="tab" type="button" data-view="chat" aria-selected="false" aria-label="ログ">
+        <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="ico-line"><path d="M4 5h16v11H8l-4 4z"/></svg>
         <span class="tab-dot" id="chatDot" hidden aria-label="未対応のチャットあり"></span>
       </button>
-      <button class="tab" type="button" data-view="profile" aria-selected="false">
-        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" class="ico-line"><circle cx="12" cy="8" r="4"/><path d="M5 20c0-3.5 3.1-6 7-6s7 2.5 7 6"/></svg>
-        <span>プロフィール</span>
+      <button class="tab" type="button" data-view="profile" aria-selected="false" aria-label="プロフィール">
+        <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="ico-line"><circle cx="12" cy="8" r="4"/><path d="M5 20c0-3.5 3.1-6 7-6s7 2.5 7 6"/></svg>
       </button>
     </nav>
   </div>
@@ -488,31 +493,16 @@
       <!-- 定型文＋スタンプ -->
       <div class="thread-input">
         <div class="thread-stamps" id="threadStamps">
-          <button class="stamp-btn" type="button" data-stamp="wave" aria-label="やあ">
-            <svg viewBox="0 0 24 24" width="24" height="24" class="ico-line"><path d="M6.5 12.5 6 11a1.4 1.4 0 0 1 2.5-1.2l.5.9M9 9.5 7.8 7a1.4 1.4 0 0 1 2.5-1.2l1.2 2.5M11.6 8.4l-.6-1.4a1.4 1.4 0 0 1 2.5-1.1l1.5 3.3M14.9 9.2a1.4 1.4 0 0 1 2.6-1l1 2.4c1.1 2.9-.4 6.1-3.3 7.2s-6-.3-7.1-3.1L7.5 12"/></svg>
-          </button>
-          <button class="stamp-btn" type="button" data-stamp="smile" aria-label="にっこり">
-            <svg viewBox="0 0 24 24" width="24" height="24" class="ico-line"><circle cx="12" cy="12" r="9"/><path d="M8.5 14c1 1.2 2.1 1.8 3.5 1.8s2.5-.6 3.5-1.8"/><path d="M9 9.5h.01M15 9.5h.01"/></svg>
-          </button>
-          <button class="stamp-btn" type="button" data-stamp="thumb" aria-label="いいね">
-            <svg viewBox="0 0 24 24" width="24" height="24" class="ico-line"><path d="M7 11v9H4v-9z"/><path d="M7 11l4-7c1.3 0 2 .9 2 2v3h4.6c1 0 1.8.9 1.6 1.9l-1.3 6c-.2.8-.9 1.1-1.6 1.1H7"/></svg>
-          </button>
-          <button class="stamp-btn" type="button" data-stamp="heart" aria-label="ハート">
-            <svg viewBox="0 0 24 24" width="24" height="24" class="ico-line"><path d="M12 20s-7-4.6-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.4-7 10-7 10z"/></svg>
-          </button>
-          <button class="stamp-btn" type="button" data-stamp="star" aria-label="スター">
-            <svg viewBox="0 0 24 24" width="24" height="24" class="ico-line"><path d="M12 3l2.5 5.3 5.7.8-4.1 4 1 5.6L12 16.4 6.9 18.7l1-5.6-4.1-4 5.7-.8z"/></svg>
-          </button>
-          <button class="stamp-btn" type="button" data-stamp="spark" aria-label="キラキラ">
-            <svg viewBox="0 0 24 24" width="24" height="24" class="ico-line"><path d="M12 3l1.7 5.1L19 10l-5.3 1.9L12 17l-1.7-5.1L5 10l5.3-1.9z"/></svg>
-          </button>
+          <button class="stamp-btn" type="button" data-stamp="⭕" aria-label="はい">⭕</button>
+          <button class="stamp-btn" type="button" data-stamp="❌" aria-label="いいえ">❌</button>
+          <button class="stamp-btn" type="button" data-stamp="😊" aria-label="にっこり">😊</button>
         </div>
         <div class="thread-phrases" id="threadPhrases">
-          <button class="phrase-btn" type="button">こんにちは！</button>
-          <button class="phrase-btn" type="button">ログ交換ありがとう！</button>
-          <button class="phrase-btn" type="button">よかったら一緒にどうですか？</button>
-          <button class="phrase-btn" type="button">趣味が合いそうですね</button>
+          <button class="phrase-btn" type="button">初めまして！</button>
+          <button class="phrase-btn" type="button">ありがとうございます！</button>
+          <button class="phrase-btn" type="button">趣味が合いそう！</button>
           <button class="phrase-btn" type="button">また今度！</button>
+          <button class="phrase-btn" type="button">交換しませんか？</button>
         </div>
       </div>
 
@@ -530,10 +520,10 @@
     </div>
   </div>
 
-  <script src="js/config.js?v=20260703e"></script>
-  <script src="js/ads.js?v=20260703e"></script>
-  <script src="js/purchases.js?v=20260703e"></script>
-  <script src="js/data.js?v=20260703e"></script>
-  <script src="js/app.js?v=20260703e"></script>
+  <script src="js/config.js?v=20260703g"></script>
+  <script src="js/ads.js?v=20260703g"></script>
+  <script src="js/purchases.js?v=20260703g"></script>
+  <script src="js/data.js?v=20260703g"></script>
+  <script src="js/app.js?v=20260703g"></script>
 </body>
 </html>

@@ -201,6 +201,30 @@
     return getInviteIds().filter(function (x) { return !x.usedWith; }).length;
   }
 
+  // 交換用IDのチップ入力（Enter/改行で確定、✕で1つずつ削除）。編集中の未使用コード。
+  var pendingInvites = [];
+  function renderInviteChips() {
+    var box = document.getElementById("inviteChips");
+    if (!box) return;
+    box.innerHTML = pendingInvites.map(function (code, i) {
+      return '<span class="invite-chip"><span class="invite-code">' + esc(code) + "</span>" +
+        '<button type="button" class="invite-x" data-i="' + i + '" aria-label="削除">' +
+        '<svg viewBox="0 0 24 24" width="12" height="12" class="ico-line"><path d="M6 6l12 12M18 6L6 18"/></svg>' +
+        "</button></span>";
+    }).join("");
+  }
+  function addInvite(raw) {
+    var used = getInviteIds().filter(function (x) { return x.usedWith; }).map(function (x) { return x.code; });
+    String(raw).split(/[\n,]/).forEach(function (s) {
+      var code = s.trim();
+      if (!code) return;
+      if (pendingInvites.indexOf(code) !== -1) return; // 重複
+      if (used.indexOf(code) !== -1) return;           // 使用済みは復活させない
+      pendingInvites.push(code);
+    });
+    renderInviteChips();
+  }
+
   // ---------- 会話（成立相手ごと。定型文＋スタンプのみ・セッション内保持）----------
   var convos = {}; // id -> { open, msgs:[{from,kind,body}], meAgreed, themAgreed, revealed, theirId }
   function convo(id) {
@@ -245,6 +269,7 @@
   }
 
   var pendingImage = null;     // ダウンスケール済み画像 dataURL
+  var pendingImage2 = null;    // サブ画像（任意）dataURL
   var pendingVideoName = "";   // 動画ファイル名（実体の保存はバックエンド前提）
   var pendingVideoUrl = null;  // セッション内プレビュー用 objectURL
   var pendingVideoBlob = null; // 圧縮後の動画データ（バックエンド接続時にアップロードする本体）
@@ -414,7 +439,12 @@
     coachShown = false;
     // app.html では初回（プロフィール未登録）はプロフ入力から入る
     var gate = document.getElementById("profileSetup");
-    if (gate && !getProfile()) { setHandleLocked(false); setAppGated(true); return; } // 新規はハンドルID設定可
+    if (gate && !getProfile()) { // 新規：ハンドルID設定可・招待チップ空
+      setHandleLocked(false);
+      pendingInvites = []; renderInviteChips();
+      var iin = document.getElementById("pf-invite-input"); if (iin) iin.value = "";
+      setAppGated(true); return;
+    }
     setAppGated(false);
     render();
     showView("swipe");
@@ -479,8 +509,7 @@
     var slotText = document.getElementById("slotText");
     var slotAdd = document.getElementById("slotAddBtn");
     if (slotText) {
-      slotText.textContent = "トークできる人数 " + openThreadCount() + "/" +
-        (cap === Infinity ? "∞" : cap);
+      slotText.textContent = "（" + openThreadCount() + "/" + (cap === Infinity ? "∞" : cap) + "）";
     }
     if (slotAdd) slotAdd.hidden = (cap === Infinity);
 
@@ -530,7 +559,7 @@
     list.innerHTML = active.slice().reverse().map(function (u) {
       var c = convo(u.id);
       var last = c.msgs.length ? c.msgs[c.msgs.length - 1] : null;
-      var lastText = last ? (last.kind === "stamp" ? stampSvg(last.body, 16) : esc(last.body)) : "トーク中";
+      var lastText = last ? (last.kind === "stamp" ? last.body : esc(last.body)) : "トーク中";
       return '<button class="chat-row" type="button" data-id="' + u.id + '">' +
         '<img class="chat-av" src="' + photoUrl(u.photo, 96, 96) + '" alt="" />' +
         '<span class="chat-meta"><span class="chat-name">' + esc(u.name) +
@@ -546,21 +575,9 @@
     });
   }
 
-  // ---------- スタンプ（絵文字は使わずSVGラインアイコン）----------
-  var STAMP_SVGS = {
-    wave: '<path d="M6.5 12.5 6 11a1.4 1.4 0 0 1 2.5-1.2l.5.9M9 9.5 7.8 7a1.4 1.4 0 0 1 2.5-1.2l1.2 2.5M11.6 8.4l-.6-1.4a1.4 1.4 0 0 1 2.5-1.1l1.5 3.3M14.9 9.2a1.4 1.4 0 0 1 2.6-1l1 2.4c1.1 2.9-.4 6.1-3.3 7.2s-6-.3-7.1-3.1L7.5 12"/>',
-    smile: '<circle cx="12" cy="12" r="9"/><path d="M8.5 14c1 1.2 2.1 1.8 3.5 1.8s2.5-.6 3.5-1.8"/><path d="M9 9.5h.01M15 9.5h.01"/>',
-    thumb: '<path d="M7 11v9H4v-9z"/><path d="M7 11l4-7c1.3 0 2 .9 2 2v3h4.6c1 0 1.8.9 1.6 1.9l-1.3 6c-.2.8-.9 1.1-1.6 1.1H7"/>',
-    heart: '<path d="M12 20s-7-4.6-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.4-7 10-7 10z"/>',
-    star: '<path d="M12 3l2.5 5.3 5.7.8-4.1 4 1 5.6L12 16.4 6.9 18.7l1-5.6-4.1-4 5.7-.8z"/>',
-    spark: '<path d="M12 3l1.7 5.1L19 10l-5.3 1.9L12 17l-1.7-5.1L5 10l5.3-1.9z"/>'
-  };
-  function stampSvg(id, size) {
-    var body = STAMP_SVGS[id] || STAMP_SVGS.smile;
-    return '<svg viewBox="0 0 24 24" width="' + size + '" height="' + size +
-      '" class="ico-line stamp-svg" aria-hidden="true">' + body + '</svg>';
-  }
-  // 小さな装飾SVG（鍵・稲妻）。絵文字の代替。
+  // トークのスタンプは絵文字（3種）。body に絵文字そのものを保持する。
+  // ※UIのアイコン（鍵・稲妻など）は絵文字を使わずSVGで統一。
+  // 小さな装飾SVG（鍵・稲妻）。
   var KEY_SVG = '<svg viewBox="0 0 24 24" width="15" height="15" class="ico-line" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l8-8M17 4l2 2M15 6l1.5 1.5"/></svg>';
   var BOLT_SVG = '<svg viewBox="0 0 24 24" width="14" height="14" class="ico-line" aria-hidden="true"><path d="M13 3L5 13h5l-1 8 8-11h-5z"/></svg>';
 
@@ -596,7 +613,7 @@
       } else {
         log.innerHTML = c.msgs.map(function (m) {
           var cls = "bubble " + (m.from === "me" ? "me" : "them") + (m.kind === "stamp" ? " is-stamp" : "");
-          return '<div class="' + cls + '">' + (m.kind === "stamp" ? stampSvg(m.body, 46) : esc(m.body)) + "</div>";
+          return '<div class="' + cls + '">' + (m.kind === "stamp" ? m.body : esc(m.body)) + "</div>";
         }).join("");
       }
       log.scrollTop = log.scrollHeight;
@@ -625,12 +642,31 @@
     var need = CONFIG.ID_EXCHANGE_MIN_TURNS || 3;
 
     if (c.revealed) {
+      // 公開したIDは1つだけ（あなたの招待ID）。2人とものID公開は不要。
       bar.hidden = false;
       bar.className = "idx-bar revealed";
       bar.innerHTML =
-        '<div class="idx-done">' + KEY_SVG + ' ID交換が成立しました</div>' +
-        '<div class="idx-pair"><span class="idx-label">相手のID</span><span class="idx-val">' + esc(c.theirId) + "</span></div>" +
-        '<div class="idx-pair"><span class="idx-label">渡した招待ID</span><span class="idx-val">' + esc(c.myGivenId || "") + "</span></div>";
+        '<div class="idx-done">' + KEY_SVG + ' IDを公開しました</div>' +
+        '<div class="idx-pair"><span class="idx-label">あなたの招待ID</span><span class="idx-val">' + esc(c.myGivenId || "") + "</span></div>";
+      return;
+    }
+    // 公開できる招待IDが尽きていたら交換不可（使い回し防止）
+    if (availableInviteCount() === 0) {
+      bar.hidden = false;
+      bar.className = "idx-bar wait";
+      bar.innerHTML = '<span class="idx-wait">公開できるSetlog招待IDがありません。プロフィールで追加してください。</span>';
+      return;
+    }
+    if (c.requested) {
+      // あなたが交換を求めた → 相手も乗り気の表示 → OKで自分のIDを公開
+      bar.hidden = false;
+      bar.className = "idx-bar ready";
+      bar.innerHTML =
+        '<span class="idx-cap idx-cap-strong">' + esc(user.name) + ' さんも交換したがっています！</span>' +
+        '<div class="idx-btns"><button class="idx-btn" id="idxOkBtn" type="button">' + KEY_SVG + ' OK（IDを公開）</button></div>' +
+        '<span class="idx-cap">OKすると、あなたの招待IDが1つ相手へ渡されます</span>';
+      var ok = document.getElementById("idxOkBtn");
+      if (ok) ok.onclick = function () { confirmIdExchange(user); };
       return;
     }
     if (myTurns < need) {
@@ -639,49 +675,46 @@
       bar.innerHTML = '<span class="idx-wait">あと' + (need - myTurns) + '回やりとりすると、ID交換できます</span>';
       return;
     }
-    // 渡せる招待IDが尽きていたら交換させない（使い回し防止）
-    if (availableInviteCount() === 0) {
-      bar.hidden = false;
-      bar.className = "idx-bar wait";
-      bar.innerHTML = '<span class="idx-wait">渡せるSetlog招待IDがありません。プロフィールで追加してください。</span>';
-      return;
-    }
-    // need到達後は交換ボタンを表示。上限(MAX)に達したら往復を止め「交換 or 解除」に絞る。
+    // 「IDを交換しますか？」ボタン。上限(MAX)に達したら解除も出す。
     var max = CONFIG.MSG_MAX_TURNS || 10;
     var capped = myTurns >= max;
     bar.hidden = false;
     bar.className = "idx-bar ready" + (capped ? " capped" : "");
     bar.innerHTML =
-      (capped ? '<span class="idx-cap idx-cap-strong">往復の上限です。IDを交換するか、解除してください。</span>' : "") +
+      (capped ? '<span class="idx-cap idx-cap-strong">往復の上限です。交換するか、解除してください。</span>' : "") +
       '<div class="idx-btns">' +
-        '<button class="idx-btn" id="idxBtn" type="button">' + KEY_SVG + ' IDを交換する</button>' +
+        '<button class="idx-btn" id="idxBtn" type="button">' + KEY_SVG + ' IDを交換しますか？</button>' +
         (capped ? '<button class="idx-unmatch" id="idxUnmatch" type="button">解除する</button>' : "") +
-      "</div>" +
-      (capped ? "" : '<span class="idx-cap">おたがい交換すると、設定した交換用IDが渡されます（あと' + (max - myTurns) + '往復）</span>');
+      "</div>";
     var btn = document.getElementById("idxBtn");
-    if (btn) btn.onclick = function () { agreeIdExchange(user); };
+    if (btn) btn.onclick = function () { requestIdExchange(user); };
     var un = document.getElementById("idxUnmatch");
     if (un) un.onclick = function () { unmatchThread(user); };
   }
 
-  function agreeIdExchange(user) {
+  // 交換を求める：相手に「交換したがってる」と伝わる（デモは相手も乗り気）
+  function requestIdExchange(user) {
     var c = convo(user.id);
-    // 未使用の招待IDを1つ確保（無ければ交換しない）
+    c.requested = true;
+    c.msgs.push({ from: "them", kind: "text", body: "交換したい！" });
+    renderThread(user);
+    renderChat();
+  }
+
+  // OK：あなたの招待IDを1つ消費して公開（使い切り）。相手のIDは公開不要。
+  function confirmIdExchange(user) {
+    var c = convo(user.id);
     var prof = getProfile() || {};
     var invites = getInviteIds(prof);
     var slot = null;
     for (var i = 0; i < invites.length; i++) { if (!invites[i].usedWith) { slot = invites[i]; break; } }
-    if (!slot) { renderThread(user); return; } // 渡せるIDが無い（renderで案内）
-    // この相手に紐づけて使い切りにする＝二度と送信されない
-    slot.usedWith = user.id;
+    if (!slot) { renderThread(user); return; } // 公開できるIDが無い
+    slot.usedWith = user.id;                    // 使い切り：二度と送信されない
     prof.inviteIds = invites;
     saveProfile(prof);
-    c.meAgreed = true;
-    c.themAgreed = true; // デモ：相手も同意した扱い
     c.revealed = true;
-    c.myGivenId = slot.code;                 // この相手に渡した招待ID
-    c.theirId = "grp-" + String(user.handle || user.id).replace(/^@/, "");
-    c.msgs.push({ from: "them", kind: "text", body: "IDを交換しました！" });
+    c.myGivenId = slot.code;
+    c.msgs.push({ from: "them", kind: "text", body: "ありがとう！受け取りました！" });
     renderThread(user);
     renderChat();
   }
@@ -696,8 +729,8 @@
     // 擬似返信（デモ。実運用では相手の実メッセージに置き換え）
     setTimeout(function () {
       if (threadUser !== user) return;
-      var stamps = ["smile", "thumb", "spark", "heart"];
-      var phrases = ["いいですね！", "こちらこそ！", "ありがとう！", "楽しみです"];
+      var stamps = ["😊", "⭕"];
+      var phrases = ["いいですね！", "こちらこそ！", "ありがとうございます！", "楽しみです"];
       var useStamp = Math.random() < 0.5;
       c.msgs.push(useStamp
         ? { from: "them", kind: "stamp", body: stamps[Math.floor(Math.random() * stamps.length)] }
@@ -806,6 +839,7 @@
         (p.handle ? '<div class="ps-handle">' + esc(p.handle) + "</div>" : "") +
         '<div class="ps-meta">' + (p.pref ? esc(p.pref) : "地域未設定") + "</div>" +
         (tags ? '<div class="ps-tags">' + tags + "</div>" : "") +
+        (p.image2 ? '<img class="ps-sub" src="' + p.image2 + '" alt="サブ画像" />' : "") +
         '<div class="ps-note">ログの動画：' + (p.videoName ? "設定済み" : "未設定") + "</div>" +
       "</div>";
     renderPremium();
@@ -823,7 +857,7 @@
     var mBtn = document.getElementById("subMonthBtn");
     if (mBtn) mBtn.textContent = "プレミアムに加入（" + (CONFIG.PRICE_SUB_MONTH || "") + "／月）";
     var boostLabel = document.getElementById("boostLabel");
-    if (boostLabel) boostLabel.textContent = "マッチ率アップ（30分・" + (CONFIG.PRICE_BOOST || "") + "）";
+    if (boostLabel) boostLabel.textContent = "ブースト（30分・" + (CONFIG.PRICE_BOOST || "") + "）";
 
     if (state) {
       state.textContent = sub ? "加入中（月額）" : "未加入";
@@ -838,7 +872,7 @@
     if (note) {
       if (boostActive()) {
         var mins = Math.max(1, Math.round((getState().boostUntil - Date.now()) / 60000));
-        note.hidden = false; note.innerHTML = BOLT_SVG + " マッチ率アップ中（あと約" + mins + "分）";
+        note.hidden = false; note.innerHTML = BOLT_SVG + " ブースト中（あと約" + mins + "分）";
       } else note.hidden = true;
     }
   }
@@ -857,9 +891,10 @@
     var n = document.getElementById("pf-name"); if (n) n.value = p.name || "";
     var h = document.getElementById("pf-handle"); if (h) h.value = (p.handle || "").replace(/^@/, "");
     setHandleLocked(!!p.handle); // 既存のハンドルIDは変更不可
-    var inv = document.getElementById("pf-invites");
-    if (inv) inv.value = getInviteIds(p).filter(function (x) { return !x.usedWith; })
-      .map(function (x) { return x.code; }).join("\n");
+    pendingInvites = getInviteIds(p).filter(function (x) { return !x.usedWith; })
+      .map(function (x) { return x.code; });
+    renderInviteChips();
+    var invIn = document.getElementById("pf-invite-input"); if (invIn) invIn.value = "";
     var usedNote = document.getElementById("pf-invites-used");
     if (usedNote) {
       var usedN = getInviteIds(p).filter(function (x) { return x.usedWith; }).length;
@@ -875,7 +910,9 @@
       c.classList.toggle("is-on", on);
       c.setAttribute("aria-pressed", on ? "true" : "false");
     });
+    pendingImage2 = p.image2 || null;
     setUploadState("pf-image", p.image ? "画像を変更" : "画像を選ぶ", !!p.image);
+    setUploadState("pf-image2", p.image2 ? "画像を変更" : "画像を選ぶ", !!p.image2);
     setUploadState("pf-video", p.videoName ? "動画を変更" : "動画を選ぶ", !!p.videoName);
     // 既存プロフィールの編集時は同意・年齢確認済みとして扱う
     var agree = document.getElementById("pf-agree"); if (agree) agree.checked = true;
@@ -897,6 +934,7 @@
     convos = {};
     threadUser = null;
     pendingImage = null;
+    pendingImage2 = null;
     pendingVideoName = "";
     pendingVideoBlob = null;
     if (pendingVideoUrl) { try { URL.revokeObjectURL(pendingVideoUrl); } catch (e) {} pendingVideoUrl = null; }
@@ -906,7 +944,9 @@
     Array.prototype.forEach.call(document.querySelectorAll("#pf-tags .pf-chip.is-on"), function (c) {
       c.classList.remove("is-on"); c.setAttribute("aria-pressed", "false");
     });
+    pendingInvites = []; renderInviteChips();
     setUploadState("pf-image", "画像を選ぶ", false);
+    setUploadState("pf-image2", "画像を選ぶ", false);
     setUploadState("pf-video", "動画を選ぶ", false);
     showVideoSize(0);
     init();
@@ -1266,6 +1306,16 @@
         });
       });
 
+      var img2Input = document.getElementById("pf-image2");
+      if (img2Input) img2Input.addEventListener("change", function () {
+        var f = img2Input.files && img2Input.files[0];
+        if (!f) { pendingImage2 = null; setUploadState("pf-image2", "画像を選ぶ", false); return; }
+        downscaleImage(f, 512, function (dataUrl) {
+          pendingImage2 = dataUrl || null;
+          setUploadState("pf-image2", dataUrl ? "画像を変更" : "画像を選ぶ", !!dataUrl);
+        });
+      });
+
       if (vidInput) vidInput.addEventListener("change", function () {
         var f = vidInput.files && vidInput.files[0];
         var verr = document.getElementById("pf-video-err");
@@ -1313,12 +1363,42 @@
       });
 
       // ハッシュタグのトグル選択
+      var TAG_MAX = 3;
       var tagsBox = document.getElementById("pf-tags");
       if (tagsBox) tagsBox.addEventListener("click", function (e) {
         var chip = e.target.closest(".pf-chip");
         if (!chip) return;
+        var maxNote = document.getElementById("pf-tags-max");
+        // すでにONなら常に外せる。OFF→ONは3つまで。
+        if (!chip.classList.contains("is-on")) {
+          var count = tagsBox.querySelectorAll(".pf-chip.is-on").length;
+          if (count >= TAG_MAX) { if (maxNote) maxNote.hidden = false; return; }
+        }
         var on = chip.classList.toggle("is-on");
         chip.setAttribute("aria-pressed", on ? "true" : "false");
+        if (maxNote) maxNote.hidden = tagsBox.querySelectorAll(".pf-chip.is-on").length < TAG_MAX;
+      });
+
+      // 交換用ID：Enter/改行で確定してチップ化、✕で1つずつ削除
+      var inviteInput = document.getElementById("pf-invite-input");
+      if (inviteInput) {
+        inviteInput.addEventListener("keydown", function (e) {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            if (inviteInput.value.trim()) { addInvite(inviteInput.value); inviteInput.value = ""; }
+          }
+        });
+        inviteInput.addEventListener("paste", function (e) {
+          var t = (e.clipboardData || window.clipboardData).getData("text");
+          if (t && /[\n,]/.test(t)) { e.preventDefault(); addInvite(t); inviteInput.value = ""; }
+        });
+      }
+      var inviteChipsBox = document.getElementById("inviteChips");
+      if (inviteChipsBox) inviteChipsBox.addEventListener("click", function (e) {
+        var x = e.target.closest(".invite-x");
+        if (!x) return;
+        var i = parseInt(x.dataset.i, 10);
+        if (!isNaN(i)) { pendingInvites.splice(i, 1); renderInviteChips(); }
       });
 
       // プレビュー（モーダル）
@@ -1417,16 +1497,17 @@
           function (c) { return c.dataset.tag; }
         );
         var prevProf = getProfile() || {};
-        // 招待IDプールを再構築：使用済みは必ず保持（＝再送しない）、入力欄は未使用ぶんとして扱う
+        // 入力中でEnter未確定の値も取り込む
+        var invInputEl = document.getElementById("pf-invite-input");
+        if (invInputEl && invInputEl.value.trim()) { addInvite(invInputEl.value); invInputEl.value = ""; }
+        // 招待IDプールを再構築：使用済みは必ず保持（＝再送しない）、チップは未使用ぶん
         var prevInvites = getInviteIds(prevProf);
         var usedEntries = prevInvites.filter(function (x) { return x.usedWith; });
         var usedCodes = {};
         usedEntries.forEach(function (x) { usedCodes[x.code] = 1; });
-        var lines = ((document.getElementById("pf-invites") || {}).value || "")
-          .split(/\r?\n/).map(function (s) { return s.trim(); }).filter(Boolean);
         var seen = {};
         var unusedEntries = [];
-        lines.forEach(function (code) {
+        pendingInvites.forEach(function (code) {
           if (usedCodes[code] || seen[code]) return; // 使用済み・重複は追加しない
           seen[code] = 1;
           unusedEntries.push({ code: code, usedWith: null });
@@ -1436,6 +1517,7 @@
           name: name,
           handle: "@" + handle,
           inviteIds: inviteIds,
+          image2: pendingImage2 || "",
           pref: document.getElementById("pf-pref").value,
           gender: document.getElementById("pf-gender").value,
           tags: tags,
@@ -1468,6 +1550,11 @@
     if (threadClose) threadClose.addEventListener("click", function () {
       closeOverlay(document.getElementById("threadOverlay"));
       threadUser = null;
+    });
+    // 相手のアイコンをタップ → プロフィール（自己紹介）を表示
+    var threadAvEl = document.getElementById("threadAv");
+    if (threadAvEl) threadAvEl.addEventListener("click", function () {
+      if (threadUser) openViewer(threadUser);
     });
     var stampsBox = document.getElementById("threadStamps");
     if (stampsBox) stampsBox.addEventListener("click", function (e) {
