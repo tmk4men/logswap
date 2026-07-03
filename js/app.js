@@ -414,7 +414,7 @@
     coachShown = false;
     // app.html では初回（プロフィール未登録）はプロフ入力から入る
     var gate = document.getElementById("profileSetup");
-    if (gate && !getProfile()) { setAppGated(true); return; }
+    if (gate && !getProfile()) { setHandleLocked(false); setAppGated(true); return; } // 新規はハンドルID設定可
     setAppGated(false);
     render();
     showView("swipe");
@@ -844,10 +844,21 @@
       } else note.hidden = true;
     }
   }
+  // ハンドルIDの入力ロック（一度設定したら変更不可）
+  function setHandleLocked(locked) {
+    var h = document.getElementById("pf-handle");
+    if (h) { h.disabled = !!locked; h.classList.toggle("is-locked", !!locked); }
+    var wrap = h && h.closest(".pf-handle-wrap");
+    if (wrap) wrap.classList.toggle("is-locked", !!locked);
+    var note = document.getElementById("pf-handle-locked");
+    if (note) note.hidden = !locked;
+  }
+
   function openProfileEdit() {
     var p = getProfile() || {};
     var n = document.getElementById("pf-name"); if (n) n.value = p.name || "";
     var h = document.getElementById("pf-handle"); if (h) h.value = (p.handle || "").replace(/^@/, "");
+    setHandleLocked(!!p.handle); // 既存のハンドルIDは変更不可
     var inv = document.getElementById("pf-invites");
     if (inv) inv.value = getInviteIds(p).filter(function (x) { return !x.usedWith; })
       .map(function (x) { return x.code; }).join("\n");
@@ -1355,30 +1366,37 @@
         if (err) err.hidden = true;
         nameEl.removeAttribute("aria-invalid");
 
-        // ハンドルID：半角英数字と _ のみ（任意。空なら名前などから自動採番）
+        // ハンドルID：一度設定したら変更不可。既存があればそれを使い、検証は新規時のみ。
         var handleEl = document.getElementById("pf-handle");
         var handleErr = document.getElementById("pf-handle-err");
-        var handle = (handleEl ? handleEl.value : "").trim().replace(/^@/, "");
-        if (handle && !/^[A-Za-z0-9_]{1,20}$/.test(handle)) {
-          if (handleErr) { handleErr.textContent = "ハンドルIDは半角英数字と _ のみ使えます。"; handleErr.hidden = false; }
-          setFocus(handleEl);
-          return;
+        var existingProfile = getProfile();
+        var handle;
+        if (existingProfile && existingProfile.handle) {
+          handle = existingProfile.handle.replace(/^@/, ""); // 変更不可：既存を維持
+          if (handleErr) handleErr.hidden = true;
+        } else {
+          handle = (handleEl ? handleEl.value : "").trim().replace(/^@/, "");
+          if (handle && !/^[A-Za-z0-9_]{1,20}$/.test(handle)) {
+            if (handleErr) { handleErr.textContent = "ハンドルIDは半角英数字と _ のみ使えます。"; handleErr.hidden = false; }
+            setFocus(handleEl);
+            return;
+          }
+          var badHandle = findBanned(handle);
+          if (badHandle) {
+            if (handleErr) { handleErr.textContent = "ハンドルIDに使えない語が含まれています（" + badHandle + "）。"; handleErr.hidden = false; }
+            setFocus(handleEl);
+            return;
+          }
+          if (handleErr) handleErr.hidden = true;
+          if (!handle) handle = "user" + String(Math.floor(Math.random() * 1e6)); // 空なら自動採番
         }
-        // 名前・ハンドルの禁止ワード検査（連絡先誘導・過度に性的な表現）
+        // 名前の禁止ワード検査（連絡先誘導・過度に性的な表現）
         var badName = findBanned(name);
         if (badName) {
           if (err) { err.textContent = "名前に使えない語が含まれています（" + badName + "）。"; err.hidden = false; }
           setFocus(nameEl);
           return;
         }
-        var badHandle = findBanned(handle);
-        if (badHandle) {
-          if (handleErr) { handleErr.textContent = "ハンドルIDに使えない語が含まれています（" + badHandle + "）。"; handleErr.hidden = false; }
-          setFocus(handleEl);
-          return;
-        }
-        if (handleErr) handleErr.hidden = true;
-        if (!handle) handle = "user" + String(Math.floor(Math.random() * 1e6)); // 空なら自動採番
 
         var age = document.getElementById("pf-age");
         var ageErr = document.getElementById("pf-age-err");

@@ -725,6 +725,9 @@ a { color: inherit; text-decoration: none; }
 .pf-handle-wrap { position: relative; display: flex; align-items: center; }
 .pf-handle-at { position: absolute; left: 14px; font-weight: 700; color: var(--muted); pointer-events: none; }
 .pf-handle-input { padding-left: 30px; }
+.pf-input:disabled, .pf-input.is-locked { background: var(--paper); color: var(--muted); cursor: not-allowed; }
+.pf-handle-wrap.is-locked .pf-handle-at { color: var(--muted); }
+.pf-locked-note { color: var(--accent-ink); font-weight: 700; }
 
 /* 招待ID（複数・1行1つ） */
 .pf-textarea { resize: vertical; min-height: 68px; line-height: 1.7; font-family: inherit; }
