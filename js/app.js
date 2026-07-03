@@ -174,11 +174,23 @@
     if (s.msgAdUntil && Date.now() < s.msgAdUntil) cap += (s.msgAdSlots || 0);
     return cap;
   }
+  // トーク枠の広告：1日 MSG_AD_MAX 回まで。1回で MSG_AD_SLOTS 枠を MSG_AD_HOURS 時間ぶん加算。
+  function msgAdLeft() {
+    var s = getState();
+    if (s.msgAdDate !== today()) { s.msgAdDate = today(); s.msgAdCount = 0; saveState(s); }
+    return Math.max(0, (CONFIG.MSG_AD_MAX || 5) - (s.msgAdCount || 0));
+  }
   function addMsgAd() {
     var s = getState();
-    s.msgAdSlots = CONFIG.MSG_AD_SLOTS || 3;
+    if (s.msgAdDate !== today()) { s.msgAdDate = today(); s.msgAdCount = 0; }
+    if ((s.msgAdCount || 0) >= (CONFIG.MSG_AD_MAX || 5)) return false;
+    s.msgAdCount = (s.msgAdCount || 0) + 1;
+    // 24時間ウィンドウが切れていたら枠をリセットしてから加算
+    if (!(s.msgAdUntil && Date.now() < s.msgAdUntil)) s.msgAdSlots = 0;
+    s.msgAdSlots = (s.msgAdSlots || 0) + (CONFIG.MSG_AD_SLOTS || 3);
     s.msgAdUntil = Date.now() + (CONFIG.MSG_AD_HOURS || 24) * 3600 * 1000;
     saveState(s);
+    return true;
   }
 
   // マッチ率アップ（課金アイテムのデモ）
@@ -651,11 +663,19 @@
         '<div class="idx-pair"><span class="idx-label">あなたの招待ID</span><span class="idx-val">' + esc(c.myGivenId || "") + "</span></div>";
       return;
     }
-    // 公開できる招待IDが尽きていたら交換不可（使い回し防止）
+    // 公開できる招待IDが尽きていたら、ここで1つ追加できる（プロフィールと共有）
     if (availableInviteCount() === 0) {
       bar.hidden = false;
-      bar.className = "idx-bar wait";
-      bar.innerHTML = '<span class="idx-wait">公開できるSetlog招待IDがありません。プロフィールで追加してください。</span>';
+      bar.className = "idx-bar addid";
+      bar.innerHTML =
+        '<span class="idx-wait">公開できる招待IDがありません。ここで追加できます。</span>' +
+        '<div class="idx-add"><input class="idx-add-input" id="idxAddInput" type="text" autocomplete="off" placeholder="Setlogの招待ID" />' +
+        '<button class="idx-add-btn" id="idxAddBtn" type="button">追加</button></div>';
+      var addBtn = document.getElementById("idxAddBtn");
+      var addIn = document.getElementById("idxAddInput");
+      var doAdd = function () { if (addIn && addIn.value.trim()) addInviteFromThread(user, addIn.value); };
+      if (addBtn) addBtn.onclick = doAdd;
+      if (addIn) addIn.onkeydown = function (e) { if (e.key === "Enter") { e.preventDefault(); doAdd(); } };
       return;
     }
     if (c.requested) {
@@ -691,6 +711,19 @@
     if (btn) btn.onclick = function () { requestIdExchange(user); };
     var un = document.getElementById("idxUnmatch");
     if (un) un.onclick = function () { unmatchThread(user); };
+  }
+
+  // トークからSetlog招待IDを1つ追加（プロフィールの履歴と共有）。使用済みも保持。
+  function addInviteFromThread(user, code) {
+    code = String(code).trim();
+    if (!code) return;
+    var prof = getProfile() || {};
+    var invites = getInviteIds(prof);
+    if (invites.some(function (x) { return x.code === code; })) { renderThread(user); return; } // 重複
+    invites.push({ code: code, usedWith: null });
+    prof.inviteIds = invites;
+    saveProfile(prof);
+    renderThread(user); // 追加後は交換ボタンが出る
   }
 
   // 交換を求める：相手に「交換したがってる」と伝わる（デモは相手も乗り気）
@@ -787,15 +820,16 @@
     });
   }
   function showSlotLimit() {
+    var canAd = msgAdLeft() > 0;
     showLimit({
       title: "トークできる人数の上限です",
-      sub: "動画広告で" + (CONFIG.MSG_AD_SLOTS || 3) + "枠を" + (CONFIG.MSG_AD_HOURS || 24) +
-        "時間ふやすか、誰かとの交換を解除すると空きます。プレミアムなら無制限です。",
+      sub: canAd
+        ? "動画広告を1回見ると" + (CONFIG.MSG_AD_SLOTS || 3) + "枠を" + (CONFIG.MSG_AD_HOURS || 24) +
+          "時間ふやせます（今日あと" + msgAdLeft() + "回）。誰かとの交換を解除しても空きます。プレミアムなら無制限です。"
+        : "今日はこれ以上ふやせません。交換を解除すると空きます。プレミアムなら無制限です。",
       actions: [
-        { label: "動画広告で" + (CONFIG.MSG_AD_SLOTS || 3) + "枠ふやす（無料）", primary: true,
+        { label: "動画広告で" + (CONFIG.MSG_AD_SLOTS || 3) + "枠ふやす（無料）", primary: true, disabled: !canAd,
           onClick: function () { Ads.showRewarded(function () { addMsgAd(); renderChat(); }); } },
-        { label: (CONFIG.MSG_AD_SLOTS || 3) + "枠を" + (CONFIG.PRICE_MSG_SLOTS || "") + "で",
-          onClick: function () { Purchases.buy("msg_slots", function () { addMsgAd(); renderChat(); }); } },
         { label: "プレミアムに加入（" + (CONFIG.PRICE_SUB_MONTH || "") + "／月）", onClick: function () { subscribe(); } }
       ]
     });
@@ -838,6 +872,7 @@
         av +
         '<div class="ps-name">' + esc(p.name || "未設定") + "</div>" +
         (p.handle ? '<div class="ps-handle">' + esc(p.handle) + "</div>" : "") +
+        (p.bio ? '<div class="ps-bio">' + esc(p.bio) + "</div>" : "") +
         '<div class="ps-meta">' + (p.pref ? esc(p.pref) : "地域未設定") + "</div>" +
         (tags ? '<div class="ps-tags">' + tags + "</div>" : "") +
         (p.image2 ? '<img class="ps-sub" src="' + p.image2 + '" alt="サブ画像" />' : "") +
@@ -901,6 +936,7 @@
   function openProfileEdit() {
     var p = getProfile() || {};
     var n = document.getElementById("pf-name"); if (n) n.value = p.name || "";
+    var bioEl = document.getElementById("pf-bio"); if (bioEl) bioEl.value = p.bio || "";
     var h = document.getElementById("pf-handle"); if (h) h.value = (p.handle || "").replace(/^@/, "");
     setHandleLocked(!!p.handle); // 既存のハンドルIDは変更不可
     pendingInvites = getInviteIds(p).filter(function (x) { return !x.usedWith; })
@@ -1528,6 +1564,7 @@
         var inviteIds = usedEntries.concat(unusedEntries);
         saveProfile({
           name: name,
+          bio: (document.getElementById("pf-bio") || {}).value || "",
           handle: "@" + handle,
           inviteIds: inviteIds,
           image2: pendingImage2 || "",
