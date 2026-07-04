@@ -78,6 +78,9 @@
 
     // ---- 上限・課金・ブースト ----
     "上限に達しました": "Limit reached",
+    "今日のスワイプは終わりです": "You're out of swipes for today",
+    "／月": "/mo", "登録する": "Subscribe", "広告を見る": "Watch ad",
+    "今日はこれ以上増やせません": "You can't add any more today",
     "ブーストを使う": "Use Boost", "ブースト中": "Boost active", "使用する（30分）": "Use (30 min)",
     "プレミアムに加入": "Subscribe to Premium",
 

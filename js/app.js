@@ -1111,19 +1111,38 @@
     });
     openOverlay(ov);
   }
+  // スワイプ上限：LogSwap Premier のフルスクリーン案内を出す
   function showSwipeLimit() {
+    var ov = document.getElementById("promoOverlay");
+    if (!ov) return;
     var canAd = swipeAdLeft() > 0;
-    showLimit({
-      title: "今日のスワイプは終わりです",
-      sub: canAd
-        ? "動画広告を見ると" + (CONFIG.SWIPE_AD_ADD || 5) + "回ぶん増やせます（今日あと" + swipeAdLeft() + "回）。プレミアムなら無制限です。"
-        : "今日はこれ以上増やせません。プレミアムなら無制限になります。",
-      actions: [
-        { label: "動画広告を見る（＋" + (CONFIG.SWIPE_AD_ADD || 5) + "・無料）", primary: true, disabled: !canAd,
-          onClick: function () { Ads.showRewarded(function () { if (addSwipeAd()) render(); }); } },
-        { label: t("プレミアムに加入（") + (CONFIG.PRICE_SUB_MONTH || "") + t("／月）"), onClick: function () { subscribe(); } }
-      ]
-    });
+    var add = CONFIG.SWIPE_AD_ADD || 5;
+
+    var price = document.getElementById("promoPrice");
+    if (price) price.textContent = CONFIG.PRICE_SUB_MONTH || "";
+
+    var isEn = !!(window.I18N && I18N.lang === "en");
+    var adBtn = document.getElementById("promoWatchAd");
+    if (adBtn) {
+      adBtn.textContent = isEn
+        ? "Watch ad (+" + add + " swipes)"
+        : "広告を見る（＋" + add + "スワイプ）";
+      adBtn.hidden = !canAd;
+      adBtn.onclick = function () {
+        closeOverlay(ov);
+        Ads.showRewarded(function () { if (addSwipeAd()) render(); });
+      };
+    }
+    var adNote = document.getElementById("promoAdNote");
+    if (adNote) adNote.hidden = canAd;
+
+    var sub = document.getElementById("promoSubscribe");
+    if (sub) sub.onclick = function () { closeOverlay(ov); subscribe(); };
+
+    var x = document.getElementById("promoClose");
+    if (x) x.onclick = function () { closeOverlay(ov); };
+
+    openOverlay(ov);
   }
   function showSlotLimit() {
     var canAd = msgAdLeft() > 0;
@@ -1509,7 +1528,7 @@
   // ---------- オーバーレイ開閉＋フォーカス管理（a11y） ----------
   var lastFocused = null;
   // 手前（最前面）から順に。フォーカストラップ・背景クリック・Escで使う
-  var OVERLAY_IDS = ["filterOverlay", "boostOverlay", "limitOverlay", "unmatchOverlay", "deleteOverlay", "blockOverlay", "reportOverlay", "policyOverlay",
+  var OVERLAY_IDS = ["promoOverlay", "filterOverlay", "boostOverlay", "limitOverlay", "unmatchOverlay", "deleteOverlay", "blockOverlay", "reportOverlay", "policyOverlay",
     "termsOverlay", "previewOverlay", "logViewer", "threadOverlay", "matchOverlay"];
 
   function focusables(el) {
