@@ -39,10 +39,13 @@
     PRICE_BOOST: "¥250",       // ブースト30分（単発）
     // ※トーク枠・スワイプ+5 は「動画広告 or プレミアム」で解放（有料販売なし）
 
-    // ── 課金（IAP）── 既定OFF＝デモ（購入は即成功扱い）。
-    // 本番化：Capacitorの課金プラグインを入れて IAP_ENABLED:true、
-    // 各 productId を App Store Connect / Google Play で作成して合わせる。
-    IAP_ENABLED: false,
+    // ── 課金（IAP）── 実課金ON。
+    // 実装は cordova-plugin-purchase（js/purchases.js）。
+    // ネイティブ（iOS/Android）＝App Store/Google Playの本物の課金。
+    // Web/デスクトップ＝プラグインが無いので自動でデモ動作（挙動はこれまで通り）。
+    // 事前準備：各 productId を App Store Connect / Google Play に登録し、
+    // iOSは Xcode で StoreKit（In-App Purchase）ケイパビリティを有効化しておくこと。
+    IAP_ENABLED: true,
     IAP_PRODUCTS: {
       sub_month: "logswap_premium_month",
       boost: "logswap_boost_30m"

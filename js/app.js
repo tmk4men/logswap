@@ -26,7 +26,8 @@
   // 広告・課金レイヤ（ads.js / purchases.js）。未読込でも動くフォールバック付き。
   var Ads = window.LogSwapAds || { showRewarded: function (cb) { if (cb) cb(); } };
   var Purchases = window.LogSwapPurchases ||
-    { buy: function (k, ok) { if (ok) ok(); }, restore: function (d) { if (d) d([]); } };
+    { init: function () {}, buy: function (k, ok) { if (ok) ok(); }, restore: function (d) { if (d) d([]); },
+      manageSubscriptions: function () { return false; }, priceOf: function () { return null; }, isNative: function () { return false; } };
 
   // スワイプ内広告：実カード AD_INTERVAL 枚ごとに広告カードを1枚差し込む。
   // 既定は無効（config.js の ADS_ENABLED）。有効時のみ配列に __ad マーカーを挿入。
@@ -1119,7 +1120,7 @@
     var add = CONFIG.SWIPE_AD_ADD || 5;
 
     var price = document.getElementById("promoPrice");
-    if (price) price.textContent = CONFIG.PRICE_SUB_MONTH || "";
+    if (price) price.textContent = subPrice();
 
     var isEn = !!(window.I18N && I18N.lang === "en");
     var adBtn = document.getElementById("promoWatchAd");
@@ -1161,12 +1162,26 @@
   }
 
   // 課金：加入（上限案内から。既定は月額プラン扱い）。購入はIAPレイヤ経由。
-  function subscribe() {
-    Purchases.buy("sub_month", function () {
-      var s = getState(); s.sub = true; if (!s.subPlan) s.subPlan = "month"; saveState(s);
-      rebuildDeck(); renderProfile();
-    });
+  // 加入状態はここで決め打ちせず、ストアが返す「現在有効な購読」を applySubState で反映する。
+  function subscribe() { Purchases.buy("sub_month"); }
+
+  // ストアの購読状態をアプリへ反映（購入/復元/期限切れ/起動時の同期の唯一の入口）。
+  // 実課金では Purchases.init のコールバックから、デモでは buy() から呼ばれる。
+  function applySubState(active) {
+    var s = getState();
+    active = !!active;
+    if (!!s.sub === active) return;            // 変化なしなら何もしない
+    s.sub = active;
+    if (active && !s.subPlan) s.subPlan = "month";
+    saveState(s);
+    rebuildDeck(); renderProfile();
   }
+  // 消耗型ブーストが1個付与されたとき（購入検証 or デモ）。
+  function grantBoost() { addBoostItem(); renderSwipeBoost(); renderPremium(); }
+
+  // 表示価格：ストアのローカライズ価格が取れればそれを、無ければ config の表示値を使う。
+  function subPrice() { return (Purchases.priceOf && Purchases.priceOf("sub_month")) || CONFIG.PRICE_SUB_MONTH || ""; }
+  function boostPrice() { return (Purchases.priceOf && Purchases.priceOf("boost")) || CONFIG.PRICE_BOOST || ""; }
   // タブのインジケータ：チャットの赤い点＋「いいねされた人数」の赤い数字
   function updateTabIndicators() {
     var badge = document.getElementById("chatBadge");
@@ -1220,18 +1235,22 @@
     var filter = document.getElementById("premiumFilter");
     var s = getState();
     var sub = isSub();
-    // 価格をconfigからボタンへ流し込む（月額のみ）
+    // 価格をボタンへ流し込む（ストアの実価格を優先、無ければconfigの表示値）
     var mBtn = document.getElementById("subMonthBtn");
-    if (mBtn) mBtn.textContent = t("プレミアムに加入（") + (CONFIG.PRICE_SUB_MONTH || "") + t("／月）");
+    if (mBtn) mBtn.textContent = t("プレミアムに加入（") + subPrice() + t("／月）");
     var boostLabel = document.getElementById("boostLabel");
-    if (boostLabel) boostLabel.textContent = t("ブーストを買う（") + (CONFIG.PRICE_BOOST || "") + t("）");
+    if (boostLabel) boostLabel.textContent = t("ブーストを買う（") + boostPrice() + t("）");
 
     if (state) {
       state.textContent = sub ? t("加入中（月額）") : t("未加入");
       state.classList.toggle("on", sub);
     }
     if (plans) plans.hidden = sub;   // 加入中はプラン選択を隠し、解約ボタンを出す
-    if (cancel) cancel.hidden = !sub;
+    if (cancel) {
+      cancel.hidden = !sub;
+      // 実課金ではアプリ内解約は不可＝ストアの管理画面へ誘導。デモは即解約。
+      cancel.textContent = (Purchases.isNative && Purchases.isNative()) ? t("サブスクを管理") : t("解約する（デモ）");
+    }
     if (filter) filter.hidden = !sub;
     var fg = document.getElementById("flt-gender"); if (fg) fg.value = s.fltGender || "";
     var fp = document.getElementById("flt-pref"); if (fp) fp.value = s.fltPref || "";
@@ -1729,6 +1748,16 @@
 
   // ---------- イベント結線 ----------
   function bindControls() {
+    // 課金画面の「利用規約 / プライバシー」リンク（Apple 3.1.2 の必須表記）。
+    // 規約・プライバシー本文の全画面オーバーレイを開く（アプリ内の機能的リンク）。
+    Array.prototype.forEach.call(document.querySelectorAll(".iap-legal-link"), function (link) {
+      link.addEventListener("click", function () {
+        var id = link.getAttribute("data-open") === "terms" ? "termsOverlay" : "policyOverlay";
+        var ov = document.getElementById(id);
+        if (ov) openOverlay(ov);
+      });
+    });
+
     // しぼり込みの地域選択をプロフィールの地域（＝言語で都道府県/国名）から複製
     var filtPref = document.getElementById("filt-pref");
     if (filtPref) {
@@ -1758,7 +1787,8 @@
     });
     var filterSubscribe = document.getElementById("filterSubscribe");
     if (filterSubscribe) filterSubscribe.addEventListener("click", function () {
-      Purchases.buy("sub_month", function () { setSub(true, "month"); openFilterDialog(); }); // 加入後はそのまま絞り込める
+      // 加入は applySubState 経由で反映。反映後にダイアログを開き直す（デモは同期的に加入済み）
+      Purchases.buy("sub_month", function () { openFilterDialog(); });
     });
     document.getElementById("yesBtn").onclick = function () { swipeTop("yes"); };
     document.getElementById("noBtn").onclick = function () { swipeTop("no"); };
@@ -2074,22 +2104,19 @@
     });
 
     // ── プレミアム（加入・解約／しぼり込み／ブースト）
-    function setSub(on, plan) {
-      var s = getState(); s.sub = on; if (on) s.subPlan = plan; saveState(s);
-      rebuildDeck(); renderProfile();
-    }
     var subMonth = document.getElementById("subMonthBtn");
     if (subMonth) subMonth.addEventListener("click", function () {
-      Purchases.buy("sub_month", function () { setSub(true, "month"); });
+      Purchases.buy("sub_month");   // 反映は applySubState 経由
     });
     var subCancel = document.getElementById("subCancelBtn");
-    if (subCancel) subCancel.addEventListener("click", function () { setSub(false); });
+    if (subCancel) subCancel.addEventListener("click", function () {
+      // 実課金：アプリ内で解約はできない → ストアの購読管理画面へ。デモ：即解約。
+      if (Purchases.isNative && Purchases.isNative()) { Purchases.manageSubscriptions(); return; }
+      applySubState(false);
+    });
     var restoreBtn = document.getElementById("restoreBtn");
     if (restoreBtn) restoreBtn.addEventListener("click", function () {
-      Purchases.restore(function (list) {
-        // 実運用：復元された購入に応じて課金状態を戻す。デモは対象なし。
-        if (list && list.length) { var s = getState(); s.sub = true; saveState(s); rebuildDeck(); renderProfile(); }
-      });
+      Purchases.restore(function () { /* 復元結果は applySubState（onSubChange）で反映 */ });
     });
     var fltGender = document.getElementById("flt-gender");
     if (fltGender) fltGender.addEventListener("change", function () {
@@ -2111,8 +2138,8 @@
     }
     var boostBtn = document.getElementById("boostBtn");
     if (boostBtn) boostBtn.addEventListener("click", function () {
-      // 購入すると「所持」が1つ増える。実際の使用はスワイプ画面のブーストアイコンから。
-      Purchases.buy("boost", function () { addBoostItem(); renderSwipeBoost(); renderPremium(); });
+      // 購入すると「所持」が1つ増える（付与は grantBoost=onBoostGranted 経由）。使用はスワイプ画面から。
+      Purchases.buy("boost");
     });
     // スワイプ画面のブーストアイコン → 使用ダイアログ
     var swipeBoostBtn = document.getElementById("swipeBoost");
@@ -2225,6 +2252,9 @@
   if (window.I18N) window.I18N.applyStatic(); // 静的HTMLを言語に合わせて翻訳
   localizeRegionSelect();                     // 英語時は都道府県→国名に
   bindControls();
+  // 課金の初期化：加入状態と消耗型ブーストの付与をストアの実イベントに結線。
+  // Web/デモではプラグインが無いので no-op（購入は buy() 側でデモ動作）。
+  Purchases.init({ onSubChange: applySubState, onBoostGranted: grantBoost });
   init();
   setupReveal();
 

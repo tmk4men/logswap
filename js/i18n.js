@@ -81,6 +81,9 @@
     "今日のスワイプは終わりです": "You're out of swipes for today",
     "／月": "/mo", "登録する": "Subscribe", "広告を見る": "Watch ad",
     "今日はこれ以上増やせません": "You can't add any more today",
+    "月額の自動更新サブスクです。解約しない限り自動更新され、解約は各ストアの購読管理から行えます。":
+      "Auto-renewing monthly subscription. It renews automatically unless canceled; manage or cancel it anytime in your store account.",
+    "プライバシー": "Privacy", "サブスクを管理": "Manage subscription",
     "ブーストを使う": "Use Boost", "ブースト中": "Boost active", "使用する（30分）": "Use (30 min)",
     "プレミアムに加入": "Subscribe to Premium",
 

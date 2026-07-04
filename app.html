@@ -32,13 +32,13 @@
   <meta name="twitter:description" content="ログを交換する相手を探す。スワイプして、おたがいOKでログを見せ合おう。" />
   <meta name="twitter:image" content="https://tmk4men.github.io/logswap/assets/og.png" />
 
-  <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png?v=20260704a" />
-  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png?v=20260704a" />
-  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20260704a" />
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png?v=20260704b" />
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png?v=20260704b" />
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20260704b" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700&family=M+PLUS+Rounded+1c:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=20260704a" />
+  <link rel="stylesheet" href="css/style.css?v=20260704b" />
 </head>
 <body class="app-page">
   <div class="app-shell">
@@ -275,6 +275,10 @@
         </div>
         <button class="btn-ghost sm" id="subCancelBtn" type="button" hidden>解約する（デモ）</button>
         <button class="premium-restore" id="restoreBtn" type="button">購入を復元</button>
+        <p class="iap-legal">
+          月額の自動更新サブスクです。解約しない限り自動更新され、解約は各ストアの購読管理から行えます。
+          <button type="button" class="iap-legal-link" data-open="terms">利用規約</button>・<button type="button" class="iap-legal-link" data-open="privacy">プライバシー</button>
+        </p>
 
         <div class="premium-filter" id="premiumFilter" hidden>
           <p class="premium-sub">条件でしぼり込み（プレミアム）</p>
@@ -577,6 +581,10 @@
       <button class="btn-primary promo-cta" id="promoSubscribe" type="button">登録する</button>
       <button class="btn-ghost promo-ad" id="promoWatchAd" type="button">広告を見る（＋5スワイプ）</button>
       <p class="promo-adnote" id="promoAdNote" hidden>今日はこれ以上増やせません</p>
+      <p class="iap-legal">
+        月額の自動更新サブスクです。解約しない限り自動更新され、解約は各ストアの購読管理から行えます。
+        <button type="button" class="iap-legal-link" data-open="terms">利用規約</button>・<button type="button" class="iap-legal-link" data-open="privacy">プライバシー</button>
+      </p>
     </div>
   </div>
 
@@ -633,13 +641,13 @@
     </div>
   </div>
 
-  <script src="js/config.js?v=20260704a"></script>
-  <script src="js/i18n.js?v=20260704a"></script>
-  <script src="js/vendor/supabase.js?v=20260704a"></script>
-  <script src="js/backend.js?v=20260704a"></script>
-  <script src="js/ads.js?v=20260704a"></script>
-  <script src="js/purchases.js?v=20260704a"></script>
-  <script src="js/data.js?v=20260704a"></script>
-  <script src="js/app.js?v=20260704a"></script>
+  <script src="js/config.js?v=20260704b"></script>
+  <script src="js/i18n.js?v=20260704b"></script>
+  <script src="js/vendor/supabase.js?v=20260704b"></script>
+  <script src="js/backend.js?v=20260704b"></script>
+  <script src="js/ads.js?v=20260704b"></script>
+  <script src="js/purchases.js?v=20260704b"></script>
+  <script src="js/data.js?v=20260704b"></script>
+  <script src="js/app.js?v=20260704b"></script>
 </body>
 </html>

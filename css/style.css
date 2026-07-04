@@ -1035,6 +1035,14 @@ a { color: inherit; text-decoration: none; }
 .promo-cta { width: 100%; max-width: 320px; font-size: 16px; padding: 15px; }
 .promo-ad { width: 100%; max-width: 320px; margin-top: 12px; }
 .promo-adnote { margin: 12px 0 0; font-size: 12.5px; color: var(--muted); }
+.promo-sheet .iap-legal { max-width: 320px; margin-top: 16px; }
+
+/* サブスクの必須表記（自動更新の説明＋規約/プライバシーのリンク）App Store審査要件 */
+.iap-legal { margin: 12px 0 0; font-size: 11.5px; line-height: 1.6; color: var(--muted); text-align: center; }
+.iap-legal-link {
+  background: none; border: none; padding: 0; font: inherit; font-size: inherit;
+  color: var(--accent-ink); text-decoration: underline; cursor: pointer;
+}
 
 /* プレミアム（課金デモ） */
 .premium-card {
