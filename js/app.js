@@ -467,32 +467,34 @@
   }
 
   // 画像を端末内で縮小して dataURL 化（localStorage に収めるため）
+  // dataURL（File でもネイティブピッカーでも）を縮小して JPEG dataURL で返す
+  function downscaleFromDataUrl(dataUrl, maxSize, cb) {
+    var img = new Image();
+    img.onload = function () {
+      var scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+      var w = Math.max(1, Math.round(img.width * scale));
+      var h = Math.max(1, Math.round(img.height * scale));
+      var canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+      try { cb(canvas.toDataURL("image/jpeg", 0.82)); } catch (e) { cb(""); }
+    };
+    img.onerror = function () { cb(""); };
+    img.src = dataUrl;
+  }
   function downscaleImage(file, maxSize, cb) {
     var reader = new FileReader();
-    reader.onload = function () {
-      var img = new Image();
-      img.onload = function () {
-        var scale = Math.min(1, maxSize / Math.max(img.width, img.height));
-        var w = Math.max(1, Math.round(img.width * scale));
-        var h = Math.max(1, Math.round(img.height * scale));
-        var canvas = document.createElement("canvas");
-        canvas.width = w; canvas.height = h;
-        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
-        try { cb(canvas.toDataURL("image/jpeg", 0.82)); } catch (e) { cb(""); }
-      };
-      img.onerror = function () { cb(""); };
-      img.src = reader.result;
-    };
+    reader.onload = function () { downscaleFromDataUrl(reader.result, maxSize, cb); };
     reader.onerror = function () { cb(""); };
     reader.readAsDataURL(file);
   }
 
-  // アップロードボタンの見た目（文言と選択済みスタイル）を更新
+  // アップロードボタンの見た目（文言と選択済みスタイル）を更新。文言は言語に合わせて翻訳。
   function setUploadState(forId, text, isSet) {
     var btn = document.querySelector('label[for="' + forId + '"]');
     if (btn) btn.classList.toggle("is-set", !!isSet);
     var lbl = document.getElementById(forId + "-label");
-    if (lbl) lbl.textContent = text;
+    if (lbl) lbl.textContent = t(text);
   }
 
   // 「相手に表示されるプロフィール」プレビュー（動画を大きく＋左下に画像アイコン）
@@ -504,10 +506,116 @@
     if (pendingVideoUrl) {
       media.innerHTML = '<video src="' + pendingVideoUrl + '" muted loop autoplay playsinline preload="metadata"></video>';
     } else {
-      media.innerHTML = '<div class="pf-pv-empty">動画を選ぶと<br>ここに大きく表示されます</div>';
+      media.innerHTML = '<div class="pf-pv-empty">' + t("動画を選ぶと") + "<br>" + t("ここに大きく表示されます") + "</div>";
     }
     if (pendingImage) { icon.src = pendingImage; icon.hidden = false; }
     else { icon.removeAttribute("src"); icon.hidden = true; }
+  }
+
+  // ---------- 動画ファイルの検査・圧縮（<input> でもネイティブピッカーでも共通）----------
+  function processVideoFile(f) {
+    var verr = document.getElementById("pf-video-err");
+    if (verr) verr.hidden = true;
+    if (pendingVideoUrl) { try { URL.revokeObjectURL(pendingVideoUrl); } catch (e) {} pendingVideoUrl = null; }
+    pendingVideoName = "";
+    pendingVideoBlob = null;
+    showVideoSize(0);
+    if (!f) { setUploadState("pf-video", "動画を選ぶ", false); updatePreview(); return; }
+    // 長さ3秒までを検査（メタデータだけ読む）
+    var probeUrl = URL.createObjectURL(f);
+    var probe = document.createElement("video");
+    probe.preload = "metadata";
+    probe.onloadedmetadata = function () {
+      var d = probe.duration;
+      try { URL.revokeObjectURL(probeUrl); } catch (e) {}
+      if (isFinite(d) && d > 3.3) { // 3秒まで（エンコード誤差を少し許容）
+        if (verr) { verr.textContent = t("動画は3秒までです（選んだ動画は約") + d.toFixed(1) + t("秒）。"); verr.hidden = false; }
+        setUploadState("pf-video", "動画を選ぶ", false);
+        updatePreview();
+        return;
+      }
+      pendingVideoName = f.name || "video";
+      // 長さOK → 低画質・低ビットレートに圧縮してからプレビュー・保存に使う
+      setUploadState("pf-video", "動画を処理中…", true);
+      compressVideo(f, { maxDim: 640, bitrate: 900000 }, function (blob) {
+        // 圧縮できて実際に軽くなった時だけ採用。ダメなら原本にフォールバック。
+        var use = (blob && blob.size > 0 && blob.size < f.size) ? blob : f;
+        pendingVideoBlob = use;
+        pendingVideoUrl = URL.createObjectURL(use);
+        showVideoSize(use.size, use !== f);
+        setUploadState("pf-video", "動画を変更", true);
+        updatePreview();
+      });
+    };
+    probe.onerror = function () {
+      try { URL.revokeObjectURL(probeUrl); } catch (e) {}
+      if (verr) { verr.textContent = t("この動画を読み込めませんでした。別の動画をお試しください。"); verr.hidden = false; }
+      setUploadState("pf-video", "動画を選ぶ", false);
+      updatePreview();
+    };
+    probe.src = probeUrl;
+  }
+
+  // ---------- ネイティブ（Capacitor）の写真ライブラリ専用ピッカー ----------
+  // アプリ内では <input type=file> を使わず、カメラを一切出さないネイティブピッカーで選ばせる。
+  // Web（Safari等）では Capacitor が無いので、従来の <input type=file> にフォールバックする。
+  function isNativeApp() {
+    return !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === "function" && window.Capacitor.isNativePlatform());
+  }
+  function getFilePicker() {
+    return (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.FilePicker) || null;
+  }
+  function base64ToBlob(b64, type) {
+    var bin = atob(b64);
+    var arr = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    return new Blob([arr], { type: type || "application/octet-stream" });
+  }
+  // 画像を選び終えたあとの共通処理（縮小して pending に格納）
+  function applyPickedImageDataUrl(slot, dataUrl) {
+    downscaleFromDataUrl(dataUrl, 512, function (scaled) {
+      if (slot === "pf-image2") pendingImage2 = scaled || null;
+      else pendingImage = scaled || null;
+      setUploadState(slot, scaled ? "画像を変更" : "画像を選ぶ", !!scaled);
+      updatePreview();
+    });
+  }
+  function pickImageNative(slot) {
+    var FP = getFilePicker();
+    if (!FP) return;
+    FP.pickImages({ limit: 1, readData: true }).then(function (res) {
+      var f = res && res.files && res.files[0];
+      if (!f || !f.data) return;
+      applyPickedImageDataUrl(slot, "data:" + (f.mimeType || "image/jpeg") + ";base64," + f.data);
+    }).catch(function () { /* キャンセル等は無視 */ });
+  }
+  function pickVideoNative() {
+    var FP = getFilePicker();
+    if (!FP) return;
+    FP.pickVideos({ limit: 1, readData: true }).then(function (res) {
+      var f = res && res.files && res.files[0];
+      if (!f || !f.data) return;
+      var blob = base64ToBlob(f.data, f.mimeType || "video/mp4");
+      var name = f.name || "video.mp4";
+      var file;
+      try { file = new File([blob], name, { type: blob.type }); }
+      catch (e) { file = blob; } // File 未対応環境の保険（Blob をそのまま使う）
+      processVideoFile(file);
+    }).catch(function () {});
+  }
+  // 「選ぶ」ラベルのタップをネイティブピッカーに差し替える（Web は既定の <input> 動作のまま）
+  function wireNativePickers() {
+    if (!isNativeApp()) return; // Web では何もしない
+    [["pf-image", "image"], ["pf-image2", "image2"], ["pf-video", "video"]].forEach(function (pair) {
+      var label = document.querySelector('label[for="' + pair[0] + '"]');
+      if (!label) return;
+      label.addEventListener("click", function (e) {
+        if (!getFilePicker()) return; // プラグイン未導入なら従来の <input> にフォールバック
+        e.preventDefault();
+        if (pair[1] === "video") pickVideoNative();
+        else pickImageNative(pair[0]);
+      });
+    });
   }
 
   // 相手条件でしぼり込み（プレミアム時のみ有効）。state.fltGender / fltPref を使う。
@@ -1826,49 +1934,12 @@
 
       if (vidInput) vidInput.addEventListener("change", function () {
         var f = vidInput.files && vidInput.files[0];
-        var verr = document.getElementById("pf-video-err");
-        if (verr) verr.hidden = true;
-        if (pendingVideoUrl) { try { URL.revokeObjectURL(pendingVideoUrl); } catch (e) {} pendingVideoUrl = null; }
-        pendingVideoName = "";
-        pendingVideoBlob = null;
-        showVideoSize(0);
-        if (!f) { setUploadState("pf-video", "動画を選ぶ", false); updatePreview(); return; }
-        // 長さ3秒までを検査（メタデータだけ読む）
-        var probeUrl = URL.createObjectURL(f);
-        var probe = document.createElement("video");
-        probe.preload = "metadata";
-        probe.onloadedmetadata = function () {
-          var d = probe.duration;
-          try { URL.revokeObjectURL(probeUrl); } catch (e) {}
-          if (isFinite(d) && d > 3.3) { // 3秒まで（エンコード誤差を少し許容）
-            if (verr) { verr.textContent = "動画は3秒までです（選んだ動画は約" + d.toFixed(1) + "秒）。"; verr.hidden = false; }
-            vidInput.value = "";
-            setUploadState("pf-video", "動画を選ぶ", false);
-            updatePreview();
-            return;
-          }
-          pendingVideoName = f.name;
-          // 長さOK → 低画質・低ビットレートに圧縮してからプレビュー・保存に使う
-          setUploadState("pf-video", "動画を処理中…", true);
-          compressVideo(f, { maxDim: 640, bitrate: 900000 }, function (blob) {
-            // 圧縮できて実際に軽くなった時だけ採用。ダメなら原本にフォールバック。
-            var use = (blob && blob.size > 0 && blob.size < f.size) ? blob : f;
-            pendingVideoBlob = use;
-            pendingVideoUrl = URL.createObjectURL(use);
-            showVideoSize(use.size, use !== f);
-            setUploadState("pf-video", "動画を変更", true);
-            updatePreview();
-          });
-        };
-        probe.onerror = function () {
-          try { URL.revokeObjectURL(probeUrl); } catch (e) {}
-          if (verr) { verr.textContent = "この動画を読み込めませんでした。別の動画をお試しください。"; verr.hidden = false; }
-          vidInput.value = "";
-          setUploadState("pf-video", "動画を選ぶ", false);
-          updatePreview();
-        };
-        probe.src = probeUrl;
+        processVideoFile(f);
+        vidInput.value = ""; // 同じ動画を選び直しても change が発火するように
       });
+
+      // アプリ（Capacitor）では「選ぶ」をカメラ無しのネイティブピッカーに差し替える
+      wireNativePickers();
 
       // ハッシュタグのトグル選択
       var TAG_MAX = 3;
