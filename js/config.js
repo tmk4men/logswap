@@ -65,5 +65,13 @@
   try { override = JSON.parse(localStorage.getItem("logswap_config") || "{}") || {}; } catch (e) {}
   var cfg = {};
   for (var k in defaults) cfg[k] = (k in override) ? override[k] : defaults[k];
+
+  // スクショ・動作確認用：URLに ?demo を付けるとバックエンドを切ってデモ動作にする。
+  // （Supabaseの実データではなく data.js のモックユーザーがスワイプ欄に並ぶ）
+  // 本番URL（パラメータ無し）はこれまで通り。例: app.html?demo=1
+  try {
+    if (new URLSearchParams(location.search || "").has("demo")) cfg.BACKEND = false;
+  } catch (e) {}
+
   window.LOGSWAP_CONFIG = cfg;
 })();
