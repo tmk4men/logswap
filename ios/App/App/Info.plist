@@ -46,10 +46,6 @@
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>プロフィール画像やログ動画を選ぶために写真ライブラリを使用します。</string>
-	<key>NSCameraUsageDescription</key>
-	<string>プロフィール画像やログ動画を撮影するためにカメラを使用します。</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>ログ動画を撮影する際に音声を録音するためにマイクを使用します。</string>
+	<string>プロフィール画像やログ動画を、端末に保存済みの写真・動画から選ぶために写真ライブラリを使用します。撮影はしません。</string>
 </dict>
 </plist>

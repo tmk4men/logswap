@@ -117,7 +117,9 @@
     var jobs = [];
     var out = { image_path: undefined, image2_path: undefined, video_path: undefined };
     if (media.image) jobs.push(uploadMedia("image", media.image).then(function (u) { out.image_path = u; }));
-    if (media.image2) jobs.push(uploadMedia("image", media.image2).then(function (u) { out.image2_path = u; }));
+    // サブ画像は kind="image2"（プロフィール画像と別キーに保存）。旧実装は両方 kind="image" で
+    // 同じキーに上書きしてしまい、丸アイコンにサブ画像が出る不具合があった。
+    if (media.image2) jobs.push(uploadMedia("image2", media.image2).then(function (u) { out.image2_path = u; }));
     if (media.video) jobs.push(uploadMedia("video", media.video).then(function (u) { out.video_path = u; }));
 
     return Promise.all(jobs).then(function () {

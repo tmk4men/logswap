@@ -7,7 +7,8 @@
  *       検証して「本人のフォルダ ${userId}/ にだけ」書き込ませる。
  *
  * ルート:
- *   POST   /upload?kind=video|image   本人の動画/画像を1本保存（上書き。1人1本）
+ *   POST   /upload?kind=video|image|image2  本人の動画/画像を種類ごとに1本保存（1人1本）
+ *                                        image=プロフィール画像 / image2=サブ画像（別キーで保存）
  *   DELETE /media                     本人のメディアを全削除（退会時に呼ぶ）
  *   OPTIONS *                         CORS プリフライト
  *
@@ -16,8 +17,11 @@
 
 const LIMITS = {
   video: { maxBytes: 3 * 1024 * 1024, types: ["video/webm", "video/mp4"] },      // 圧縮済み3秒想定で3MB上限
-  image: { maxBytes: 1 * 1024 * 1024, types: ["image/jpeg", "image/png", "image/webp"] },
+  image: { maxBytes: 1 * 1024 * 1024, types: ["image/jpeg", "image/png", "image/webp"] },   // プロフィール画像（丸アイコン）
+  image2: { maxBytes: 1 * 1024 * 1024, types: ["image/jpeg", "image/png", "image/webp"] },  // サブ画像（image とは別キーに保存）
 };
+// 画像として中身検査する種類（プロフィール画像・サブ画像）
+const IMAGE_KINDS = { image: 1, image2: 1 };
 const EXT = {
   "video/webm": "webm", "video/mp4": "mp4",
   "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp",
@@ -49,7 +53,7 @@ async function handleUpload(request, env, url) {
 
   const kind = url.searchParams.get("kind");
   const spec = LIMITS[kind];
-  if (!spec) throw httpError(400, "kind は video か image");
+  if (!spec) throw httpError(400, "kind は video / image / image2 のいずれか");
 
   const contentType = (request.headers.get("content-type") || "").split(";")[0].trim();
   if (spec.types.indexOf(contentType) === -1) throw httpError(415, "対応していない形式です: " + contentType);
@@ -62,15 +66,21 @@ async function handleUpload(request, env, url) {
   if (buf.byteLength === 0) throw httpError(400, "本文が空です");
   if (buf.byteLength > spec.maxBytes) throw httpError(413, "ファイルが大きすぎます");
   // content-type ヘッダは送信者が自由に付けられるので、画像は先頭バイト（マジックナンバー）で検査
-  if (kind === "image" && !imageSniffOk(contentType, new Uint8Array(buf))) {
+  if (IMAGE_KINDS[kind] && !imageSniffOk(contentType, new Uint8Array(buf))) {
     throw httpError(415, "ファイルの中身が画像形式と一致しません");
   }
 
-  // 1人1本。固定キーで上書き（＝古いものは自動で置き換わる）
-  const key = `${userId}/${kind}.${EXT[contentType]}`;
+  // 種類ごとに1本。キーは毎回ユニークにして、更新時にブラウザ/CDNのキャッシュが確実に
+  // 差し替わるようにする（固定キー＋immutable だと古い画像が残り続ける）。
+  // プロフィール画像(image)とサブ画像(image2)は別プレフィックスなので取り違えない。
+  // 例: image のキーは "…/image-xxxx" で始まり、image2 の "…/image2-xxxx" とは前方一致しない。
+  const old = await env.MEDIA.list({ prefix: `${userId}/${kind}-` });
+  const key = `${userId}/${kind}-${crypto.randomUUID()}.${EXT[contentType]}`;
   await env.MEDIA.put(key, buf, {
     httpMetadata: { contentType, cacheControl: "public, max-age=31536000, immutable" },
   });
+  // 同じ種類の古いオブジェクトを掃除（1人1本を維持。account 削除時は prefix 一括削除で全消去）
+  if (old.objects.length) await env.MEDIA.delete(old.objects.map((o) => o.key));
 
   return json({ url: publicUrl(env, key), key });
 }
