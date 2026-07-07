@@ -531,6 +531,12 @@ a { color: inherit; text-decoration: none; }
 .filter-sub-btn { width: 100%; margin: 2px 0 14px; }
 
 /* 言語切替（プロフィール下部） */
+.contact-row { text-align: center; margin-top: 12px; }
+.contact-link {
+  font-family: inherit; font-size: 13px; color: var(--muted);
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.contact-link:hover { color: var(--ink); }
 .lang-row { text-align: center; margin-top: 12px; }
 .lang-toggle {
   border: 1px solid var(--line); background: transparent; color: var(--ink-2);

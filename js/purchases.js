@@ -117,14 +117,31 @@
     var st = store();
     var id = pid(productKey);
     if (!id) { if (onFail) onFail(new Error("unknown product: " + productKey)); return; }
-    var product = st.get(id);
-    var offer = product && product.getOffer && product.getOffer();
-    if (!offer) { if (onFail) onFail(new Error("offer not loaded: " + id)); return; }
+
+    function offerFor() {
+      var product = st.get(id);
+      return product && product.getOffer && product.getOffer();
+    }
+    function placeOrder(offer) {
+      return Promise.resolve()
+        .then(function () { return st.order(offer); })
+        .then(function (err) {
+          if (err) { if (onFail) onFail(err); return; }  // ユーザー中断や決済失敗
+          if (onOrdered) onOrdered({});                  // 受理。反映は handlers 経由
+        });
+    }
+
+    var offer = offerFor();
+    if (offer) { placeOrder(offer).catch(function (e) { if (onFail) onFail(e); }); return; }
+
+    // 商品情報がまだ読み込めていない（起動直後・通信待ち等）。
+    // ストアから取得し直して一度だけ再試行。それでも無ければ onFail（=画面に必ず通知）。
     Promise.resolve()
-      .then(function () { return st.order(offer); })
-      .then(function (err) {
-        if (err) { if (onFail) onFail(err); return; }  // ユーザー中断や決済失敗
-        if (onOrdered) onOrdered({});                  // 受理。反映は handlers 経由
+      .then(function () { return st.update ? st.update() : null; })
+      .then(function () {
+        var o2 = offerFor();
+        if (!o2) { if (onFail) onFail(new Error("offer not loaded: " + id)); return; }
+        return placeOrder(o2);
       })
       .catch(function (e) { if (onFail) onFail(e); });
   }

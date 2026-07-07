@@ -32,13 +32,13 @@
   <meta name="twitter:description" content="ログを交換する相手を探す。スワイプして、おたがいOKでログを見せ合おう。" />
   <meta name="twitter:image" content="https://tmk4men.github.io/logswap/assets/og.png" />
 
-  <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png?v=20260705d" />
-  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png?v=20260705d" />
-  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20260705d" />
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png?v=20260707a" />
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png?v=20260707a" />
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20260707a" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700&family=M+PLUS+Rounded+1c:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=20260705d" />
+  <link rel="stylesheet" href="css/style.css?v=20260707a" />
 </head>
 <body class="app-page">
   <div class="app-shell">
@@ -203,9 +203,9 @@
         <div class="pf-field pf-consent">
           <label class="pf-check">
             <input type="checkbox" id="pf-age" />
-            <span>私は13歳以上です。</span>
+            <span>私は18歳以上です。</span>
           </label>
-          <p class="pf-err" id="pf-age-err" role="alert" hidden>13歳以上の方のみ利用できます。</p>
+          <p class="pf-err" id="pf-age-err" role="alert" hidden>18歳以上の方のみ利用できます。</p>
           <label class="pf-check">
             <input type="checkbox" id="pf-agree" />
             <span><button type="button" class="pf-link" id="openTermsBtn">利用規約</button>と<button type="button" class="pf-link" id="openPolicyBtn">プライバシーポリシー</button>に同意します。不適切なコンテンツ・迷惑行為は禁止で、違反者は利用できなくなります。</span>
@@ -308,6 +308,9 @@
       </div>
 
       <button class="btn-danger-link" id="deleteAccountBtn" type="button">アカウントを削除</button>
+      <div class="contact-row">
+        <a class="contact-link" id="contactLink" href="mailto:tomokiskriiiabc@gmail.com?subject=LogSwap%20report">お問い合わせ・不適切な内容の報告</a>
+      </div>
       <div class="lang-row"><button class="lang-toggle" id="langToggle" type="button"></button></div>
     </section>
 
@@ -398,7 +401,7 @@
         <p>アプリ内の「プロフィール」タブにある<strong>「アカウントを削除」</strong>から、いつでもアカウントと関連データ（プロフィール・画像・動画・成立した相手・トーク・ブロック／通報の記録など）を、サーバー上のものも含めてすべて削除できます。削除すると元に戻せません。</p>
 
         <h3>7. 年齢制限</h3>
-        <p>本サービスは13歳以上の方のみ利用できます。</p>
+        <p>本サービスは18歳以上の方のみ利用できます。</p>
 
         <h3>8. お問い合わせ</h3>
         <p>個人情報の取り扱いに関するお問い合わせは、運営者（tomokiskriiiabc@gmail.com）までご連絡ください。</p>
@@ -474,7 +477,7 @@
         <p>本サービスは、ユーザー同士が交換相手を見つける「マッチング」までを提供するものです。マッチング成立後にユーザーが交換・開示するID・連絡先や、その後のユーザー間のやり取り・取引・面会等について、運営は一切関与せず、責任を負いません。</p>
 
         <h3>2. 利用資格・年齢</h3>
-        <p>本サービスは<strong>13歳以上</strong>の方のみ利用できます。登録情報は正確なものとし、1人につき1アカウントとします。虚偽の申告や、他人になりすましての利用を禁止します。</p>
+        <p>本サービスは<strong>18歳以上</strong>の方のみ利用できます。登録情報は正確なものとし、1人につき1アカウントとします。虚偽の申告や、他人になりすましての利用を禁止します。</p>
 
         <h3>3. 禁止事項（ゼロトレランス）</h3>
         <p>次の行為・コンテンツを固く禁止します。違反が確認された場合、事前の通知なく投稿の削除・利用停止・アカウント削除等の措置を行います。</p>
@@ -508,7 +511,7 @@
         <p>本規約は日本法に準拠します。本サービスに関して紛争が生じた場合は、運営の所在地を管轄する裁判所を第一審の専属的合意管轄裁判所とします。</p>
 
         <h3>11. お問い合わせ</h3>
-        <p>本規約に関するお問い合わせは、運営者までご連絡ください。</p>
+        <p>本規約に関するお問い合わせ、不適切なコンテンツ・迷惑行為の報告は、運営者（tomokiskriiiabc@gmail.com）までご連絡ください。</p>
       </div>
       <button class="btn-primary" id="closeTerms" type="button">閉じる</button>
     </div>
@@ -641,13 +644,13 @@
     </div>
   </div>
 
-  <script src="js/config.js?v=20260705d"></script>
-  <script src="js/i18n.js?v=20260705d"></script>
-  <script src="js/vendor/supabase.js?v=20260705d"></script>
-  <script src="js/backend.js?v=20260705d"></script>
-  <script src="js/ads.js?v=20260705d"></script>
-  <script src="js/purchases.js?v=20260705d"></script>
-  <script src="js/data.js?v=20260705d"></script>
-  <script src="js/app.js?v=20260705d"></script>
+  <script src="js/config.js?v=20260707a"></script>
+  <script src="js/i18n.js?v=20260707a"></script>
+  <script src="js/vendor/supabase.js?v=20260707a"></script>
+  <script src="js/backend.js?v=20260707a"></script>
+  <script src="js/ads.js?v=20260707a"></script>
+  <script src="js/purchases.js?v=20260707a"></script>
+  <script src="js/data.js?v=20260707a"></script>
+  <script src="js/app.js?v=20260707a"></script>
 </body>
 </html>

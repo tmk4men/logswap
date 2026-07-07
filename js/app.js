@@ -1269,9 +1269,20 @@
     });
   }
 
+  // 購入を開始できないとき（商品情報が未取得・ストア未設定など）に必ず画面へ通知する。
+  // ＝ボタンを押しても無反応、という状態を作らない（App Store審査 2.1(a) 対策）。
+  var SUPPORT_EMAIL = "tomokiskriiiabc@gmail.com";
+  function notifyPurchaseUnavailable() {
+    showLimit({
+      title: t("いま購入を開始できません"),
+      sub: t("時間をおいて、もう一度お試しください。解決しない場合は下記までご連絡ください。") + "\n" + SUPPORT_EMAIL,
+      actions: [{ label: t("閉じる"), primary: true, onClick: function () {} }]
+    });
+  }
+
   // 課金：加入（上限案内から。既定は月額プラン扱い）。購入はIAPレイヤ経由。
   // 加入状態はここで決め打ちせず、ストアが返す「現在有効な購読」を applySubState で反映する。
-  function subscribe() { Purchases.buy("sub_month"); }
+  function subscribe() { Purchases.buy("sub_month", null, notifyPurchaseUnavailable); }
 
   // ストアの購読状態をアプリへ反映（購入/復元/期限切れ/起動時の同期の唯一の入口）。
   // 実課金では Purchases.init のコールバックから、デモでは buy() から呼ばれる。
@@ -1896,7 +1907,7 @@
     var filterSubscribe = document.getElementById("filterSubscribe");
     if (filterSubscribe) filterSubscribe.addEventListener("click", function () {
       // 加入は applySubState 経由で反映。反映後にダイアログを開き直す（デモは同期的に加入済み）
-      Purchases.buy("sub_month", function () { openFilterDialog(); });
+      Purchases.buy("sub_month", function () { openFilterDialog(); }, notifyPurchaseUnavailable);
     });
     document.getElementById("yesBtn").onclick = function () { swipeTop("yes"); };
     document.getElementById("noBtn").onclick = function () { swipeTop("no"); };
@@ -2177,7 +2188,7 @@
     // ── プレミアム（加入・解約／しぼり込み／ブースト）
     var subMonth = document.getElementById("subMonthBtn");
     if (subMonth) subMonth.addEventListener("click", function () {
-      Purchases.buy("sub_month");   // 反映は applySubState 経由
+      Purchases.buy("sub_month", null, notifyPurchaseUnavailable);   // 反映は applySubState 経由
     });
     var subCancel = document.getElementById("subCancelBtn");
     if (subCancel) subCancel.addEventListener("click", function () {
@@ -2210,7 +2221,7 @@
     var boostBtn = document.getElementById("boostBtn");
     if (boostBtn) boostBtn.addEventListener("click", function () {
       // 購入すると「所持」が1つ増える（付与は grantBoost=onBoostGranted 経由）。使用はスワイプ画面から。
-      Purchases.buy("boost");
+      Purchases.buy("boost", null, notifyPurchaseUnavailable);
     });
     // スワイプ画面のブーストアイコン → 使用ダイアログ
     var swipeBoostBtn = document.getElementById("swipeBoost");
