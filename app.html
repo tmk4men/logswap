@@ -32,13 +32,13 @@
   <meta name="twitter:description" content="ログを交換する相手を探す。スワイプして、おたがいOKでログを見せ合おう。" />
   <meta name="twitter:image" content="https://tmk4men.github.io/logswap/assets/og.png" />
 
-  <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png?v=20260707c" />
-  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png?v=20260707c" />
-  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20260707c" />
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png?v=20260709a" />
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png?v=20260709a" />
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=20260709a" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700&family=M+PLUS+Rounded+1c:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=20260707c" />
+  <link rel="stylesheet" href="css/style.css?v=20260709a" />
 </head>
 <body class="app-page">
   <div class="app-shell">
@@ -356,6 +356,29 @@
     </div>
   </div>
 
+  <!-- 動画のトリミング・向き調整 -->
+  <div class="overlay" id="videoEditor" hidden>
+    <div class="dialog ve-dialog" role="dialog" aria-modal="true" aria-labelledby="veTitle">
+      <h2 class="policy-title" id="veTitle">動画の見せ方を調整</h2>
+      <p class="report-sub" id="veHint">ドラッグで位置、スライダーで拡大。横向きの動画もそのまま載せられます。</p>
+      <div class="ve-stage">
+        <canvas id="veCanvas" class="ve-canvas" width="512" height="640" aria-label="動画のプレビュー"></canvas>
+      </div>
+      <div class="ve-tools">
+        <button class="ve-btn" id="veFit" type="button">全体を表示</button>
+        <button class="ve-btn" id="veRotate" type="button">向きを回転</button>
+      </div>
+      <label class="ve-zoom">
+        <span>拡大</span>
+        <input type="range" id="veZoom" min="1" max="3" step="0.01" value="1" aria-label="拡大" />
+      </label>
+      <div class="dialog-actions">
+        <button class="btn-primary" id="veDone" type="button">決定</button>
+        <button class="btn-ghost" id="veCancel" type="button">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Log viewer -->
   <div class="overlay" id="logViewer" hidden>
     <div class="dialog viewer" role="dialog" aria-modal="true" aria-labelledby="viewerName">
@@ -644,13 +667,13 @@
     </div>
   </div>
 
-  <script src="js/config.js?v=20260707c"></script>
-  <script src="js/i18n.js?v=20260707c"></script>
-  <script src="js/vendor/supabase.js?v=20260707c"></script>
-  <script src="js/backend.js?v=20260707c"></script>
-  <script src="js/ads.js?v=20260707c"></script>
-  <script src="js/purchases.js?v=20260707c"></script>
-  <script src="js/data.js?v=20260707c"></script>
-  <script src="js/app.js?v=20260707c"></script>
+  <script src="js/config.js?v=20260709a"></script>
+  <script src="js/i18n.js?v=20260709a"></script>
+  <script src="js/vendor/supabase.js?v=20260709a"></script>
+  <script src="js/backend.js?v=20260709a"></script>
+  <script src="js/ads.js?v=20260709a"></script>
+  <script src="js/purchases.js?v=20260709a"></script>
+  <script src="js/data.js?v=20260709a"></script>
+  <script src="js/app.js?v=20260709a"></script>
 </body>
 </html>

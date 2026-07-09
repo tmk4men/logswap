@@ -396,6 +396,36 @@
   var pendingVideoName = "";   // 動画ファイル名（実体の保存はバックエンド前提）
   var pendingVideoUrl = null;  // セッション内プレビュー用 objectURL
   var pendingVideoBlob = null; // 圧縮後の動画データ（バックエンド接続時にアップロードする本体）
+  var veState = null;          // 動画エディタ（トリミング・向き調整）の作業中の状態
+
+  // 縦カード用の出力サイズ（4:5 の縦長）。長辺は圧縮の maxDim と同じ 640。
+  var VIDEO_OUT_W = 512, VIDEO_OUT_H = 640;
+
+  // 動画フレームを「向き・拡大・位置・全体/切り抜き」に従って outW×outH の枠へ描く。
+  // エディタのプレビューと、書き出し（compressVideo）の両方でこの1関数を使い、見た目を一致させる。
+  function drawFramed(ctx, video, outW, outH, st) {
+    st = st || {};
+    var rot = (((st.rotation || 0) % 360) + 360) % 360;
+    var zoom = st.zoom || 1;
+    var fit = st.fit || "cover";
+    var offX = (st.offsetX == null ? 0 : st.offsetX);
+    var offY = (st.offsetY == null ? 0 : st.offsetY);
+    var vw = video.videoWidth || outW, vh = video.videoHeight || outH;
+    var rw = (rot === 90 || rot === 270) ? vh : vw; // 回転後の外接ボックス
+    var rh = (rot === 90 || rot === 270) ? vw : vh;
+    var base = (fit === "contain") ? Math.min(outW / rw, outH / rh) : Math.max(outW / rw, outH / rh);
+    var s = base * zoom;
+    var slackX = Math.max(0, rw * s - outW) / 2;
+    var slackY = Math.max(0, rh * s - outH) / 2;
+    ctx.save();
+    ctx.fillStyle = "#1b1a17";
+    ctx.fillRect(0, 0, outW, outH);
+    ctx.translate(outW / 2 + offX * slackX, outH / 2 + offY * slackY);
+    ctx.rotate(rot * Math.PI / 180);
+    var dW = vw * s, dH = vh * s;
+    ctx.drawImage(video, -dW / 2, -dH / 2, dW, dH);
+    ctx.restore();
+  }
 
   // 動画をアップロード前に端末内で低画質・低ビットレートへ再エンコードする。
   // 保存料も配信の転送量も両方減らせる（＝サーバー運用費を安くする一番効く手）。
@@ -424,9 +454,15 @@
     var guard = setTimeout(function () { finish(null); }, 8000);
 
     v.onloadedmetadata = function () {
-      var scale = Math.min(1, maxDim / Math.max(v.videoWidth || 1, v.videoHeight || 1));
-      var w = Math.max(2, Math.round((v.videoWidth || maxDim) * scale / 2) * 2);
-      var h = Math.max(2, Math.round((v.videoHeight || maxDim) * scale / 2) * 2);
+      var frame = opts.frame || null; // {outW,outH,transform} が来たら枠に合わせて書き出す
+      var w, h;
+      if (frame) {
+        w = frame.outW; h = frame.outH;
+      } else {
+        var scale = Math.min(1, maxDim / Math.max(v.videoWidth || 1, v.videoHeight || 1));
+        w = Math.max(2, Math.round((v.videoWidth || maxDim) * scale / 2) * 2);
+        h = Math.max(2, Math.round((v.videoHeight || maxDim) * scale / 2) * 2);
+      }
       var canvas = document.createElement("canvas");
       canvas.width = w; canvas.height = h;
       var ctx = canvas.getContext("2d");
@@ -443,7 +479,10 @@
       var drawing = true;
       function draw() {
         if (!drawing) return;
-        try { ctx.drawImage(v, 0, 0, w, h); } catch (e) {}
+        try {
+          if (frame) drawFramed(ctx, v, w, h, frame.transform);
+          else ctx.drawImage(v, 0, 0, w, h);
+        } catch (e) {}
         if (!v.ended) requestAnimationFrame(draw);
       }
       v.onended = function () { drawing = false; try { rec.stop(); } catch (e) {} };
@@ -512,15 +551,25 @@
     else { icon.removeAttribute("src"); icon.hidden = true; }
   }
 
-  // ---------- 動画ファイルの検査・圧縮（<input> でもネイティブピッカーでも共通）----------
+  // 動画ボタンのラベルを「いまの状態」に合わせて戻す（エディタをキャンセルした時などに使う）
+  function refreshVideoBtn() {
+    var has = !!pendingVideoBlob;
+    setUploadState("pf-video", has ? "動画を変更" : "動画を選ぶ", has);
+  }
+
+  // ---------- 動画ファイルの検査（<input> でもネイティブピッカーでも共通）----------
+  // 長さを確認したら、そのままエディタ（トリミング・向き調整）を開く。
   function processVideoFile(f) {
     var verr = document.getElementById("pf-video-err");
     if (verr) verr.hidden = true;
-    if (pendingVideoUrl) { try { URL.revokeObjectURL(pendingVideoUrl); } catch (e) {} pendingVideoUrl = null; }
-    pendingVideoName = "";
-    pendingVideoBlob = null;
-    showVideoSize(0);
-    if (!f) { setUploadState("pf-video", "動画を選ぶ", false); updatePreview(); return; }
+    if (!f) {
+      if (pendingVideoUrl) { try { URL.revokeObjectURL(pendingVideoUrl); } catch (e) {} pendingVideoUrl = null; }
+      pendingVideoName = ""; pendingVideoBlob = null;
+      showVideoSize(0);
+      setUploadState("pf-video", "動画を選ぶ", false);
+      updatePreview();
+      return;
+    }
     // 長さ3秒までを検査（メタデータだけ読む）
     var probeUrl = URL.createObjectURL(f);
     var probe = document.createElement("video");
@@ -530,30 +579,96 @@
       try { URL.revokeObjectURL(probeUrl); } catch (e) {}
       if (isFinite(d) && d > 3.3) { // 3秒まで（エンコード誤差を少し許容）
         if (verr) { verr.textContent = t("動画は3秒までです（選んだ動画は約") + d.toFixed(1) + t("秒）。"); verr.hidden = false; }
-        setUploadState("pf-video", "動画を選ぶ", false);
-        updatePreview();
+        refreshVideoBtn(); // いまの動画（あれば）はそのまま残す
         return;
       }
-      pendingVideoName = f.name || "video";
-      // 長さOK → 低画質・低ビットレートに圧縮してからプレビュー・保存に使う
-      setUploadState("pf-video", "動画を処理中…", true);
-      compressVideo(f, { maxDim: 640, bitrate: 900000 }, function (blob) {
-        // 圧縮できて実際に軽くなった時だけ採用。ダメなら原本にフォールバック。
-        var use = (blob && blob.size > 0 && blob.size < f.size) ? blob : f;
-        pendingVideoBlob = use;
-        pendingVideoUrl = URL.createObjectURL(use);
-        showVideoSize(use.size, use !== f);
-        setUploadState("pf-video", "動画を変更", true);
-        updatePreview();
-      });
+      openVideoEditor(f); // 長さOK → 見せ方を調整してから書き出し
     };
     probe.onerror = function () {
       try { URL.revokeObjectURL(probeUrl); } catch (e) {}
       if (verr) { verr.textContent = t("この動画を読み込めませんでした。別の動画をお試しください。"); verr.hidden = false; }
-      setUploadState("pf-video", "動画を選ぶ", false);
-      updatePreview();
+      refreshVideoBtn();
     };
     probe.src = probeUrl;
+  }
+
+  // エディタで決めた枠（transform）で低画質・低ビットレートに書き出し、プレビュー・保存に使う。
+  function finishVideo(file, transform) {
+    pendingVideoName = file.name || "video";
+    setUploadState("pf-video", "動画を処理中…", true);
+    var opts = { maxDim: 640, bitrate: 900000 };
+    if (transform) opts.frame = { outW: VIDEO_OUT_W, outH: VIDEO_OUT_H, transform: transform };
+    compressVideo(file, opts, function (blob) {
+      // 通常は「軽くなった時だけ」採用。ただし枠を焼き込む時は blob 側が正しい見た目なので優先。
+      var use = (blob && blob.size > 0 && blob.size < file.size) ? blob : file;
+      if (transform && blob && blob.size > 0) use = blob;
+      if (pendingVideoUrl) { try { URL.revokeObjectURL(pendingVideoUrl); } catch (e) {} }
+      pendingVideoBlob = use;
+      pendingVideoUrl = URL.createObjectURL(use);
+      showVideoSize(use.size, use !== file);
+      setUploadState("pf-video", "動画を変更", true);
+      updatePreview();
+    });
+  }
+
+  // ---------- 動画エディタ（トリミング・向き調整）----------
+  function openVideoEditor(file) {
+    var ov = document.getElementById("videoEditor");
+    var canvas = document.getElementById("veCanvas");
+    if (!ov || !canvas || !canvas.getContext) { finishVideo(file, null); return; } // UI が無ければ従来どおり
+    var ctx = canvas.getContext("2d");
+    var url = URL.createObjectURL(file);
+    var video = document.createElement("video");
+    video.muted = true; video.loop = true; video.playsInline = true;
+    video.setAttribute("playsinline", ""); video.preload = "auto"; video.src = url;
+
+    var st = { rotation: 0, zoom: 1, fit: "cover", offsetX: 0, offsetY: 0 };
+    var alive = true, raf = 0;
+    function loop() {
+      if (!alive) return;
+      try { drawFramed(ctx, video, canvas.width, canvas.height, st); } catch (e) {}
+      raf = requestAnimationFrame(loop);
+    }
+    var fitBtn = document.getElementById("veFit");
+    var zoomInput = document.getElementById("veZoom");
+    function syncTools() {
+      if (fitBtn) fitBtn.textContent = t(st.fit === "contain" ? "切り抜き" : "全体を表示");
+      if (zoomInput) zoomInput.value = String(st.zoom);
+    }
+    video.onloadedmetadata = function () {
+      // 横長の動画は既定で「全体を表示」＝端が切れない。縦・正方形は「切り抜き」で大きく。
+      st.fit = (video.videoWidth > video.videoHeight * 1.05) ? "contain" : "cover";
+      syncTools();
+      var p = video.play(); if (p && p.catch) p.catch(function () {});
+      loop();
+    };
+
+    veState = {
+      file: file, url: url, video: video, st: st,
+      stop: function () {
+        alive = false;
+        if (raf) { try { cancelAnimationFrame(raf); } catch (e) {} }
+        try { video.pause(); } catch (e) {}
+        try { URL.revokeObjectURL(url); } catch (e) {}
+      }
+    };
+    syncTools();
+    openOverlay(ov);
+  }
+
+  // エディタを閉じる（決定 or キャンセル）。commit=true なら書き出しへ。
+  function closeVideoEditor(commit) {
+    var ov = document.getElementById("videoEditor");
+    var state = veState; veState = null;
+    if (ov) closeOverlay(ov);
+    if (!state) return;
+    var file = state.file, st = state.st;
+    state.stop();
+    if (commit) {
+      finishVideo(file, { rotation: st.rotation, zoom: st.zoom, fit: st.fit, offsetX: st.offsetX, offsetY: st.offsetY });
+    } else {
+      refreshVideoBtn(); // 元の状態に戻す
+    }
   }
 
   // ---------- ネイティブ（Capacitor）の写真ライブラリ専用ピッカー ----------
@@ -671,7 +786,10 @@
   // デッキ（スワイプ候補）を条件で組み直す。matches / convos は保持する。
   function buildDeck() {
     var prof = getProfile() || {};
-    users = (window.MOCK_USERS || []).filter(function (u) { return !isBlocked(u.id); });
+    // アプリ（app.html）はデモ用モックユーザーを出さない（?demo でも空）。
+    // モックは config.js を読まない紹介ページ（ランディング）のスワイプ体験デモ専用。
+    var demoUsers = window.LOGSWAP_CONFIG ? [] : (window.MOCK_USERS || []);
+    users = demoUsers.filter(function (u) { return !isBlocked(u.id); });
     users = applyFilter(users);
     users = orderByGender(users, prof.gender);
     users = orderByBoost(users);
@@ -1667,7 +1785,7 @@
   var lastFocused = null;
   // 手前（最前面）から順に。フォーカストラップ・背景クリック・Escで使う
   var OVERLAY_IDS = ["promoOverlay", "filterOverlay", "boostOverlay", "limitOverlay", "unmatchOverlay", "deleteOverlay", "blockOverlay", "reportOverlay", "policyOverlay",
-    "termsOverlay", "previewOverlay", "logViewer", "threadOverlay", "matchOverlay"];
+    "termsOverlay", "previewOverlay", "logViewer", "threadOverlay", "matchOverlay", "videoEditor"];
 
   function focusables(el) {
     return Array.prototype.filter.call(
@@ -1948,6 +2066,67 @@
         processVideoFile(f);
         vidInput.value = ""; // 同じ動画を選び直しても change が発火するように
       });
+
+      // 動画エディタ（トリミング・向き調整）の操作
+      var veFit = document.getElementById("veFit");
+      var veRotate = document.getElementById("veRotate");
+      var veZoom = document.getElementById("veZoom");
+      var veDone = document.getElementById("veDone");
+      var veCancel = document.getElementById("veCancel");
+      var veCanvas = document.getElementById("veCanvas");
+      if (veFit) veFit.onclick = function () {
+        if (!veState) return;
+        veState.st.fit = (veState.st.fit === "contain") ? "cover" : "contain";
+        veState.st.zoom = 1; veState.st.offsetX = 0; veState.st.offsetY = 0;
+        if (veZoom) veZoom.value = "1";
+        veFit.textContent = t(veState.st.fit === "contain" ? "切り抜き" : "全体を表示");
+      };
+      if (veRotate) veRotate.onclick = function () {
+        if (!veState) return;
+        veState.st.rotation = (veState.st.rotation + 90) % 360;
+        veState.st.offsetX = 0; veState.st.offsetY = 0;
+      };
+      if (veZoom) veZoom.oninput = function () {
+        if (!veState) return;
+        veState.st.zoom = parseFloat(veZoom.value) || 1;
+      };
+      if (veDone) veDone.onclick = function () { closeVideoEditor(true); };
+      if (veCancel) veCancel.onclick = function () { closeVideoEditor(false); };
+
+      // ドラッグで位置（切り抜き位置）を調整
+      if (veCanvas) {
+        var dragging = false, sx = 0, sy = 0, sox = 0, soy = 0;
+        function slackOf() {
+          var st = veState && veState.st, video = veState && veState.video;
+          if (!st || !video) return { x: 0, y: 0 };
+          var rot = ((st.rotation % 360) + 360) % 360;
+          var vw = video.videoWidth || veCanvas.width, vh = video.videoHeight || veCanvas.height;
+          var rw = (rot === 90 || rot === 270) ? vh : vw, rh = (rot === 90 || rot === 270) ? vw : vh;
+          var base = (st.fit === "contain") ? Math.min(veCanvas.width / rw, veCanvas.height / rh)
+                                            : Math.max(veCanvas.width / rw, veCanvas.height / rh);
+          var s = base * st.zoom;
+          return { x: Math.max(0, rw * s - veCanvas.width) / 2, y: Math.max(0, rh * s - veCanvas.height) / 2 };
+        }
+        veCanvas.addEventListener("pointerdown", function (e) {
+          if (!veState) return;
+          dragging = true; sx = e.clientX; sy = e.clientY;
+          sox = veState.st.offsetX; soy = veState.st.offsetY;
+          try { veCanvas.setPointerCapture(e.pointerId); } catch (err) {}
+        });
+        veCanvas.addEventListener("pointermove", function (e) {
+          if (!dragging || !veState) return;
+          var rect = veCanvas.getBoundingClientRect();
+          var k = rect.width ? (veCanvas.width / rect.width) : 1; // 表示px→内部px
+          var sl = slackOf();
+          var nx = sox + (sl.x ? ((e.clientX - sx) * k) / sl.x : 0);
+          var ny = soy + (sl.y ? ((e.clientY - sy) * k) / sl.y : 0);
+          veState.st.offsetX = Math.max(-1, Math.min(1, nx));
+          veState.st.offsetY = Math.max(-1, Math.min(1, ny));
+        });
+        function endDrag(e) { dragging = false; try { veCanvas.releasePointerCapture(e.pointerId); } catch (err) {} }
+        veCanvas.addEventListener("pointerup", endDrag);
+        veCanvas.addEventListener("pointercancel", endDrag);
+      }
 
       // アプリ（Capacitor）では「選ぶ」をカメラ無しのネイティブピッカーに差し替える
       wireNativePickers();
@@ -2277,7 +2456,11 @@
     });
     // キーボード操作
     document.addEventListener("keydown", function (e) {
-      if (e.key === "Escape") { eachOverlay(function (ov) { if (!ov.hidden) closeOverlay(ov); }); return; }
+      if (e.key === "Escape") {
+        if (veState) { closeVideoEditor(false); } // 動画エディタは後始末してから閉じる
+        eachOverlay(function (ov) { if (!ov.hidden) closeOverlay(ov); });
+        return;
+      }
       // モーダル表示中は Tab をダイアログ内に閉じ込める（フォーカストラップ）
       if (e.key === "Tab") {
         var ov = currentOverlay();
