@@ -45,6 +45,8 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>プロフィール画像やログ動画を、端末に保存済みの写真・動画から選ぶために写真ライブラリを使用します。撮影はしません。</string>
 </dict>
