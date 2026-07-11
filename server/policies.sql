@@ -10,9 +10,11 @@ alter table public.private_profiles  enable row level security;
 alter table public.likes             enable row level security;
 alter table public.matches           enable row level security;
 alter table public.blocks            enable row level security;
+alter table public.passes            enable row level security;
 alter table public.reports           enable row level security;
 alter table public.messages          enable row level security;
 alter table public.exchanges         enable row level security;
+alter table public.notices           enable row level security;
 
 -- ---------------- profiles（公開情報） ----------------
 -- 読み取り: ログイン済みなら誰でも（スワイプに出すため）
@@ -77,11 +79,33 @@ drop policy if exists blocks_delete on public.blocks;
 create policy blocks_delete on public.blocks
   for delete to authenticated using (blocker = auth.uid());
 
+-- ---------------- passes（×スワイプ。24hクールダウン用） ----------------
+-- 自分が押したパスだけ 作成/更新(upsertで created_at 更新)/参照/削除できる。
+drop policy if exists passes_select on public.passes;
+create policy passes_select on public.passes
+  for select to authenticated using (passer = auth.uid());
+drop policy if exists passes_insert on public.passes;
+create policy passes_insert on public.passes
+  for insert to authenticated with check (passer = auth.uid());
+drop policy if exists passes_update on public.passes;
+create policy passes_update on public.passes
+  for update to authenticated using (passer = auth.uid()) with check (passer = auth.uid());
+drop policy if exists passes_delete on public.passes;
+create policy passes_delete on public.passes
+  for delete to authenticated using (passer = auth.uid());
+
 -- ---------------- reports（作成のみ。閲覧は運営＝サービスロール） ----------------
 drop policy if exists reports_insert on public.reports;
 create policy reports_insert on public.reports
   for insert to authenticated with check (reporter = auth.uid());
 -- 通報一覧の閲覧は service_role（管理画面/サーバー）からのみ。RLS を通さないので追加ポリシー不要。
+
+-- ---------------- notices（運営からの注意。読みは本人のみ） ----------------
+-- 作成・削除は運営（直DB/service_role）のみ＝ポリシー無しで既定拒否。
+-- 「確認した(ack)」は ack_notice() RPC（security definer）経由なので update ポリシーも不要。
+drop policy if exists notices_select on public.notices;
+create policy notices_select on public.notices
+  for select to authenticated using (user_id = auth.uid());
 
 -- ---------------- messages（成立した相手とだけ） ----------------
 -- 自分が参加している match のメッセージだけ読める

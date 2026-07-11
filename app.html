@@ -177,15 +177,7 @@
             <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" class="ico-line"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 15l-5-4-8 7"/></svg>
             <span id="pf-image-label">画像を選ぶ</span>
           </label>
-        </div>
-
-        <div class="pf-field">
-          <span class="pf-field-label">サブ画像（任意・1枚）</span>
-          <input class="pf-file-input" id="pf-image2" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" aria-label="サブ画像を選ぶ" />
-          <label class="pf-upload" for="pf-image2">
-            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" class="ico-line"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 15l-5-4-8 7"/></svg>
-            <span id="pf-image2-label">画像を選ぶ</span>
-          </label>
+          <p class="pf-err" id="pf-image-err" role="alert" hidden></p>
         </div>
 
         <div class="pf-field">
@@ -330,6 +322,13 @@
     </nav>
   </div>
 
+  <!-- アカウント停止画面（運営が suspend したユーザーに全画面表示・閉じられない） -->
+  <div id="bannedScreen" hidden style="position:fixed;inset:0;z-index:99999;background:#111;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;">
+    <div style="font-size:44px;margin-bottom:16px;">🚫</div>
+    <h2 style="font-size:20px;font-weight:700;margin:0 0 12px;">アカウント停止</h2>
+    <p style="font-size:15px;line-height:1.8;max-width:320px;margin:0;">あなたのアカウントは規約に違反したため削除されました。</p>
+  </div>
+
   <!-- Match overlay -->
   <div class="overlay" id="matchOverlay" hidden>
     <div class="confetti" id="confetti" aria-hidden="true"></div>
@@ -449,6 +448,17 @@
       <div class="dialog-actions">
         <button class="btn-primary" id="reportSubmit" type="button">通報して非表示にする</button>
         <button class="btn-ghost" id="reportCancel" type="button">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 運営からの注意（警告） -->
+  <div class="overlay" id="noticeOverlay" hidden>
+    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="noticeTitle">
+      <h2 class="policy-title" id="noticeTitle">⚠️ 運営からのお知らせ</h2>
+      <p class="report-sub" id="noticeBody"></p>
+      <div class="dialog-actions">
+        <button class="btn-primary" id="noticeConfirm" type="button">確認しました</button>
       </div>
     </div>
   </div>

@@ -25,6 +25,14 @@ SUPABASE_URL = "https://pryabdockektzvghowcb.supabase.co"
 #   npx wrangler secret put SUPABASE_JWT_SECRET
 # 値は Supabase → Project Settings → API → JWT Settings → JWT Secret
 #
+# 露出（ヌード）自動判定 = Claude（Haiku 4.5・vision）。未設定なら判定はスキップ（素通り）。
+#   画像1枚あたり約$0.0015（≈0.2円）。判定はアップロード時の1回だけ。
+#   1) Anthropic Console（console.anthropic.com）→ API Keys で APIキーを発行
+#   2) この worker フォルダで登録:
+#        npx wrangler secret put ANTHROPIC_API_KEY
+#   3) npx wrangler deploy
+#   これで画像アップロード時＆動画フレームの露出チェックが有効化される。
+#
 # 前提: Supabase 標準の HS256（共有シークレット）署名を検証する実装。
 # もし Supabase の非対称JWT署名鍵(ES256/RS256)に切り替えた場合は、
 # src/index.js の verifyJwtHS256 を JWKS 検証に差し替える必要がある。

@@ -9,6 +9,8 @@
  * ルート:
  *   POST   /upload?kind=video|image|image2  本人の動画/画像を種類ごとに1本保存（1人1本）
  *                                        image=プロフィール画像 / image2=サブ画像（別キーで保存）
+ *                                        画像は保存前に露出(NSFW)自動判定し、露出なら拒否(422)。
+ *   POST   /moderate                  画像1枚の露出判定だけ行う（動画の代表フレーム用）。保存はしない。
  *   DELETE /media                     本人のメディアを全削除（退会時に呼ぶ）
  *   OPTIONS *                         CORS プリフライト
  *
@@ -36,6 +38,9 @@ export default {
     try {
       if (request.method === "POST" && url.pathname === "/upload") {
         return cors(await handleUpload(request, env, url), origin);
+      }
+      if (request.method === "POST" && url.pathname === "/moderate") {
+        return cors(await handleModerate(request, env), origin);
       }
       if (request.method === "DELETE" && url.pathname === "/media") {
         return cors(await handleDelete(request, env), origin);
@@ -69,6 +74,12 @@ async function handleUpload(request, env, url) {
   if (IMAGE_KINDS[kind] && !imageSniffOk(contentType, new Uint8Array(buf))) {
     throw httpError(415, "ファイルの中身が画像形式と一致しません");
   }
+  // 露出（ヌード・性器・性行為）の自動判定。露出と判定されたら保存せず拒否＝最初から誰にも見えない。
+  // 判定APIが未設定/不達なら素通り（fail-open：アップロード機能自体は止めない。通報自動隔離が保険）。
+  if (IMAGE_KINDS[kind]) {
+    const mod = await moderateImage(env, buf, contentType);
+    if (mod.explicit) throw httpError(422, "露出の多い画像は登録できません。別の写真を選んでください。");
+  }
 
   // 種類ごとに1本。キーは毎回ユニークにして、更新時にブラウザ/CDNのキャッシュが確実に
   // 差し替わるようにする（固定キー＋immutable だと古い画像が残り続ける）。
@@ -91,6 +102,93 @@ async function handleDelete(request, env) {
   const keys = list.objects.map((o) => o.key);
   if (keys.length) await env.MEDIA.delete(keys);
   return json({ deleted: keys.length });
+}
+
+// 動画のフレーム画像（クライアントが canvas で抜いた1枚）を露出判定するためのエンドポイント。
+// 動画本体は Worker で復号できないので、露出チェックは「代表フレーム画像」で行う。
+// 返り: { allowed: bool, checked: bool }。allowed=false ならクライアントはアップロードを中止する。
+async function handleModerate(request, env) {
+  await requireUser(request, env); // 認証必須（本人のみ）
+  const contentType = (request.headers.get("content-type") || "").split(";")[0].trim();
+  if (["image/jpeg", "image/png", "image/webp"].indexOf(contentType) === -1) {
+    throw httpError(415, "判定はJPEG/PNG/WebP画像で送ってください");
+  }
+  const buf = await request.arrayBuffer();
+  if (buf.byteLength === 0) throw httpError(400, "本文が空です");
+  if (buf.byteLength > 2 * 1024 * 1024) throw httpError(413, "フレーム画像が大きすぎます");
+  const mod = await moderateImage(env, buf, contentType);
+  return json({ allowed: !mod.explicit, checked: !!mod.checked });
+}
+
+// バイト列を base64 に（Workers には Buffer が無いので btoa で。1MB程度を分割処理）。
+function bytesToBase64(bytes) {
+  let bin = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  }
+  return btoa(bin);
+}
+
+// 画像を Claude（Haiku 4.5・vision）で露出判定する。構造化出力で {explicit: bool} を強制。
+//  - ANTHROPIC_API_KEY 未設定 → checked:false（スキップ＝fail-open）
+//  - API不達・想定外レスポンス → checked:false（fail-open。アップロードは止めない）
+//  - 露出（性器/女性の乳首の露出・性行為・自慰）と判定 → explicit:true
+//    水着・下着・上半身裸などは explicit:false（弾かない）。
+async function moderateImage(env, buf, contentType) {
+  const key = env.ANTHROPIC_API_KEY;
+  if (!key) return { checked: false };
+  let data;
+  try {
+    const b64 = bytesToBase64(new Uint8Array(buf));
+    const r = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": key,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5",
+        max_tokens: 20,
+        system:
+          "あなたは18禁ではない一般向けマッチングアプリの画像モデレーターです。" +
+          "画像が露骨な性的コンテンツ（性器や肛門の露出、女性の乳首の露出、性行為、自慰）を含むかを判定します。" +
+          "通常の顔写真・自撮り・水着・下着・上半身裸のトルソーは explicit ではありません。",
+        messages: [{
+          role: "user",
+          content: [
+            { type: "image", source: { type: "base64", media_type: contentType, data: b64 } },
+            { type: "text", text: "この画像は露骨な性的コンテンツですか？" },
+          ],
+        }],
+        output_config: {
+          format: {
+            type: "json_schema",
+            schema: {
+              type: "object",
+              properties: { explicit: { type: "boolean" } },
+              required: ["explicit"],
+              additionalProperties: false,
+            },
+          },
+        },
+      }),
+    });
+    if (!r.ok) return { checked: false };
+    data = await r.json();
+  } catch (e) {
+    return { checked: false };
+  }
+  // 構造化出力なので text ブロックの中身がそのまま JSON。
+  try {
+    const block = (data && data.content || []).find((b) => b.type === "text");
+    const parsed = block ? JSON.parse(block.text) : null;
+    if (!parsed || typeof parsed.explicit !== "boolean") return { checked: false };
+    return { checked: true, explicit: parsed.explicit };
+  } catch (e) {
+    return { checked: false };
+  }
 }
 
 // ---------- 認証（Supabase の access_token を検証） ----------

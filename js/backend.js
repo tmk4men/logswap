@@ -76,6 +76,25 @@
       });
     });
   }
+  // 画像1枚（動画の代表フレーム）を露出判定する。返り: {allowed, checked}。
+  // WORKER_URL 未設定・判定失敗は allowed:true（fail-open）で通す。
+  function moderateFrame(blobOrDataUrl) {
+    if (!CFG.WORKER_URL) return Promise.resolve({ allowed: true, checked: false });
+    var blob = (typeof blobOrDataUrl === "string") ? dataUrlToBlob(blobOrDataUrl) : blobOrDataUrl;
+    return token().then(function (t) {
+      return fetch(CFG.WORKER_URL + "/moderate", {
+        method: "POST",
+        headers: { authorization: "Bearer " + t, "content-type": blob.type || "image/jpeg" },
+        body: blob
+      });
+    }).then(function (res) {
+      return res.json().then(function (body) {
+        if (!res.ok) return { allowed: true, checked: false };
+        return { allowed: body.allowed !== false, checked: !!body.checked };
+      });
+    }).catch(function () { return { allowed: true, checked: false }; });
+  }
+
   function deleteAllMedia() {
     if (!CFG.WORKER_URL) return Promise.resolve({ deleted: 0 });
     return token().then(function (t) {
@@ -98,7 +117,8 @@
       video: pub.video_path || "",
       videoName: pub.video_name || "",
       gender: (priv && priv.gender) || "",
-      inviteIds: (priv && priv.invite_ids) || []
+      inviteIds: (priv && priv.invite_ids) || [],
+      banned: !!pub.banned   // 運営が停止したアカウント（起動時に停止画面を出す）
     };
   }
   function getMyProfile() {
@@ -275,9 +295,27 @@
     return sb.from("blocks").insert({ blocker: meId, blocked: otherId })
       .then(function (r) { if (r.error && r.error.code !== "23505") throw r.error; });
   }
+  // ×スワイプを記録。24時間はスワイプ配信から除外される（get_swipe_queue が判定）。
+  // 再パスは created_at を now に上書きしてクールダウンを延長する。
+  function pass(otherId) {
+    return sb.from("passes")
+      .upsert({ passer: meId, passed: otherId, created_at: new Date().toISOString() }, { onConflict: "passer,passed" })
+      .then(function (r) { if (r.error) throw r.error; });
+  }
   function report(otherId, reason) {
     return sb.from("reports").insert({ reporter: meId, reported: otherId, reason: reason || "その他" })
       .then(function (r) { if (r.error) throw r.error; });
+  }
+  // 運営からの未確認の注意（警告）を取得。古い順。
+  function getNotices() {
+    return sb.from("notices").select("id,body,created_at").is("ack_at", null)
+      .order("created_at", { ascending: true })
+      .then(function (r) { if (r.error) throw r.error; return r.data || []; });
+  }
+  // 注意を「確認した」と記録（body は変えられない RPC）。
+  function ackNotice(id) {
+    return sb.rpc("ack_notice", { nid: id })
+      .then(function (r) { if (r && r.error) throw r.error; });
   }
   function deleteAccount() {
     // メディア削除 → delete_me()（auth ユーザーを消して全テーブルを cascade 削除）→ サインアウト。
@@ -306,7 +344,11 @@
     getReveals: getReveals,
     deleteMatch: deleteMatch,
     block: block,
+    pass: pass,
     report: report,
+    moderateFrame: moderateFrame,
+    getNotices: getNotices,
+    ackNotice: ackNotice,
     uploadMedia: uploadMedia,
     deleteAccount: deleteAccount,
     // テスト用に内部を差し込めるフック（本番は未使用）

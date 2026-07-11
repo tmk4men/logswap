@@ -103,6 +103,14 @@
     else { b.disabled = false; if (b._label) { b.textContent = b._label; b._label = ""; } }
   }
   function showSaveError(e) {
+    var msg = (e && e.message) ? String(e.message) : "";
+    // 露出でアップロードが拒否された場合は、その理由をそのまま画像欄に出す（相手に伝える）。
+    if (msg.indexOf("露出") !== -1) {
+      var ie = document.getElementById("pf-image-err");
+      if (ie) { ie.textContent = msg; ie.hidden = false; }
+      else { var nm = document.getElementById("pf-name-err"); if (nm) { nm.textContent = msg; nm.hidden = false; } }
+      return;
+    }
     if (e && e.code === "23505") { // handle 一意制約違反
       var he = document.getElementById("pf-handle-err");
       if (he) { he.textContent = "このハンドルIDは既に使われています。別のIDにしてください。"; he.hidden = false; }
@@ -158,11 +166,21 @@
   // ---------- 禁止ワード（個人情報の誘導・過度に性的な表現）----------
   // 定型文＋スタンプ制なのでメッセージ本文は安全側。名前・ハンドルIDに適用する。
   // 交換用ID（shareId）は「連絡先を渡すための欄」なので、ここでは検査しない。
+  // 名前・ハンドルIDに適用（ここは即時に弾いて入力し直させる）。
+  // ※自己紹介(bio)・年齢・未成年語は「本人に通告せず黙って隠す」方針のため、
+  //   サーバー側トリガー(profile_should_hide)で判定する（下の app.js では検査しない）。
   var BANNED_WORDS = [
-    "line", "ライン", "らいん", "カカオ", "kakao", "telegram", "テレグラム", "discord", "ディスコ",
-    "インスタ", "instagram", "twitter", "tiktok", "電話番号", "090", "080", "070", "@gmail", "@yahoo",
-    "セックス", "sex", "エッチ", "ワンナイト", "パパ活", "ママ活", "援交", "裏垢", "avトーク", "セフレ",
-    "やりもく", "ヤリモク", "おっぱい", "ちんこ", "まんこ", "出会い"
+    // 連絡先・SNS 誘導
+    "line", "ライン", "らいん", "カカオ", "kakao", "telegram", "テレグラム", "discord", "ディスコ", "ディスコード",
+    "インスタ", "instagram", "insta", "twitter", "ツイッター", "tiktok", "ティックトック", "snapchat", "スナチャ",
+    "wechat", "kik", "skype", "スカイプ", "signal", "メアド", "メールアドレス", "gmail", "yahoo", "icloud", "hotmail",
+    "電話番号", "090", "080", "070", "連絡先", "直接連絡", "dm", "ディーエム",
+    // 性的・わいせつ
+    "セックス", "sex", "エッチ", "えっち", "えち", "エチ", "ワンナイト", "パパ活", "ママ活", "援交", "援助交際",
+    "裏垢", "avトーク", "av女優", "セフレ", "やりもく", "ヤリモク", "ヤリ目", "おっぱい", "ちんこ", "ちんちん",
+    "まんこ", "出会い", "ヤりたい", "やりたい", "フェラ", "オナニー", "射精", "中出し", "挿入", "ヌード", "全裸",
+    "性行為", "性的", "ペニス", "わいせつ", "ワイセツ", "下着", "パンチラ", "ロリ", "ショタ", "近親", "レイプ",
+    "買春", "売春", "デリヘル", "風俗", "円光", "18禁", "アダルト", "エロ", "えろ", "変態", "巨乳", "陰部", "股間", "勃起", "裸体"
   ];
   function findBanned(text) {
     if (!text) return "";
@@ -595,6 +613,7 @@
   // エディタで決めた枠（transform）で低画質・低ビットレートに書き出し、プレビュー・保存に使う。
   function finishVideo(file, transform) {
     pendingVideoName = file.name || "video";
+    var ve0 = document.getElementById("pf-video-err"); if (ve0) ve0.hidden = true; // 前回の判定エラーを消す
     setUploadState("pf-video", "動画を処理中…", true);
     var opts = { maxDim: 640, bitrate: 900000 };
     if (transform) opts.frame = { outW: VIDEO_OUT_W, outH: VIDEO_OUT_H, transform: transform };
@@ -608,6 +627,52 @@
       showVideoSize(use.size, use !== file);
       setUploadState("pf-video", "動画を変更", true);
       updatePreview();
+      moderatePendingVideo(use); // 露出（NSFW）チェック：ダメなら破棄して案内
+    });
+  }
+
+  // 動画の代表フレームを1枚抜き出す（露出判定用）。取得できたら cb(dataURL)、失敗は cb("")。
+  function grabVideoFrame(blob, cb) {
+    var done = false, url;
+    function finish(v) { if (done) return; done = true; if (url) { try { URL.revokeObjectURL(url); } catch (e) {} } cb(v); }
+    try {
+      url = URL.createObjectURL(blob);
+      var v = document.createElement("video");
+      v.muted = true; v.playsInline = true; v.setAttribute("playsinline", ""); v.preload = "auto"; v.src = url;
+      v.addEventListener("loadeddata", function () {
+        try { v.currentTime = Math.min(0.1, (v.duration || 0) / 2); } catch (e) {}
+      });
+      v.addEventListener("seeked", function () {
+        try {
+          var w = v.videoWidth || 320, h = v.videoHeight || 320;
+          var c = document.createElement("canvas");
+          c.width = w; c.height = h;
+          c.getContext("2d").drawImage(v, 0, 0, w, h);
+          finish(c.toDataURL("image/jpeg", 0.8));
+        } catch (e) { finish(""); }
+      });
+      v.addEventListener("error", function () { finish(""); });
+      setTimeout(function () { finish(""); }, 5000); // 保険（取得できなければ通す）
+    } catch (e) { finish(""); }
+  }
+
+  // 処理済み動画の露出チェック。露出と判定されたら pending を破棄して案内を出す（fail-open）。
+  function moderatePendingVideo(blob) {
+    if (!BE || !Backend.moderateFrame || !blob) return;
+    grabVideoFrame(blob, function (frameDataUrl) {
+      if (!frameDataUrl) return;                 // フレーム取得失敗は通す
+      if (pendingVideoBlob !== blob) return;     // 途中で差し替わっていたら無視
+      Backend.moderateFrame(frameDataUrl).then(function (r) {
+        if (!r || r.allowed !== false) return;   // OK もしくは判定不能は通す
+        if (pendingVideoBlob !== blob) return;   // 差し替わり対策
+        if (pendingVideoUrl) { try { URL.revokeObjectURL(pendingVideoUrl); } catch (e) {} }
+        pendingVideoBlob = null; pendingVideoName = ""; pendingVideoUrl = null;
+        setUploadState("pf-video", "動画を選ぶ", false);
+        var ve = document.getElementById("pf-video-err");
+        if (ve) { ve.textContent = "露出の多い動画は登録できません。別の動画を選んでください。"; ve.hidden = false; }
+        var vs = document.getElementById("pf-video-size"); if (vs) vs.hidden = true;
+        updatePreview();
+      });
     });
   }
 
@@ -688,6 +753,7 @@
   }
   // 画像を選び終えたあとの共通処理（縮小して pending に格納）
   function applyPickedImageDataUrl(slot, dataUrl) {
+    var ierr = document.getElementById("pf-image-err"); if (ierr) ierr.hidden = true; // 前回の露出エラーを消す
     downscaleFromDataUrl(dataUrl, 512, function (scaled) {
       if (slot === "pf-image2") pendingImage2 = scaled || null;
       else pendingImage = scaled || null;
@@ -829,11 +895,43 @@
     setAppGated(true);
   }
 
+  // ---------- 運営からの注意（警告）を起動時にポップアップ表示 ----------
+  var noticeQueue = [];
+  function showNextNotice() {
+    var ov = document.getElementById("noticeOverlay");
+    if (!ov) return;
+    if (!noticeQueue.length) { closeOverlay(ov); return; }
+    var n = noticeQueue[0];
+    var body = document.getElementById("noticeBody");
+    if (body) body.textContent = n.body || "";
+    openOverlay(ov);
+  }
+  function showNoticesIfAny() {
+    if (!BE || !Backend.getNotices) return;
+    Backend.getNotices().then(function (list) {
+      if (!list || !list.length) return;
+      noticeQueue = list.slice();
+      showNextNotice();
+    }).catch(function (e) { console.error("notices load failed", e); });
+  }
+
+  // 運営が停止(banned)したアカウント：全画面で「削除されました」を出してアプリを止める。
+  function showBannedScreen() {
+    var el = document.getElementById("bannedScreen");
+    if (el) el.hidden = false;
+    try { document.body.style.overflow = "hidden"; } catch (e) {}
+  }
+
   // バックエンド接続時の起動：匿名ログイン → 自分のプロフィール → 成立相手 → デッキ
   function initBackend() {
     Backend.init().then(function () {
       return Backend.getMyProfile();
     }).then(function (profile) {
+      if (profile && profile.banned) {  // 停止アカウントはここで打ち切り（他の画面は出さない）
+        showBannedScreen();
+        throw "banned";
+      }
+      showNoticesIfAny();   // 運営からの注意があれば表示（fire-and-forget）
       if (profile && profile.name) {
         saveProfile(profile);   // localStorage を実データのミラーに（同期コードが getProfile を使うため）
       } else {
@@ -851,7 +949,7 @@
       updateTabIndicators();
       return refreshDeck();
     }).catch(function (e) {
-      if (e === "gate") return;
+      if (e === "gate" || e === "banned") return;
       console.error("backend init error", e);
       if (!getProfile()) { showSetupGate(); return; }
       setAppGated(false); showView("swipe"); renderChat(); updateTabIndicators();
@@ -1389,11 +1487,18 @@
 
   // 購入を開始できないとき（商品情報が未取得・ストア未設定など）に必ず画面へ通知する。
   // ＝ボタンを押しても無反応、という状態を作らない（App Store審査 2.1(a) 対策）。
-  var SUPPORT_EMAIL = "tomokiskriiiabc@gmail.com";
-  function notifyPurchaseUnavailable() {
+  // 引数 err は購入レイヤ(js/purchases.js)が渡す生の失敗理由。原因切り分け用に必ずログへ残す
+  // （実機を Mac につなぎ Safari の Web インスペクタで "purchase unavailable:" を見る）。
+  function notifyPurchaseUnavailable(err) {
+    try {
+      console.error("purchase unavailable:", (err && (err.message || err.code)) || err,
+        "| native=", (Purchases.isNative && Purchases.isNative()),
+        "| subPrice=", (Purchases.priceOf && Purchases.priceOf("sub_month")),
+        "| boostPrice=", (Purchases.priceOf && Purchases.priceOf("boost")));
+    } catch (e) {}
     showLimit({
       title: t("いま購入を開始できません"),
-      sub: t("時間をおいて、もう一度お試しください。解決しない場合は下記までご連絡ください。") + "\n" + SUPPORT_EMAIL,
+      sub: t("時間をおいて、もう一度お試しください。"),
       actions: [{ label: t("閉じる"), primary: true, onClick: function () {} }]
     });
   }
@@ -1752,13 +1857,19 @@
     var delay = reduceMotion ? 0 : 520;
     setTimeout(function () {
       render();
-      if (choice !== "yes" || user.__ad) return;
-      if (BE) {
-        Backend.like(user.id).then(function (r) {
-          if (r.matched) { user.matchId = r.matchId; registerMatch(user); }
-        }).catch(function (e) { console.error("like failed", e); });
-      } else if (user.likesBack) {
-        registerMatch(user);
+      if (user.__ad) return;
+      if (choice === "yes") {
+        if (BE) {
+          Backend.like(user.id).then(function (r) {
+            if (r.matched) { user.matchId = r.matchId; registerMatch(user); }
+          }).catch(function (e) { console.error("like failed", e); });
+        } else if (user.likesBack) {
+          registerMatch(user);
+        }
+      } else { // ×：24時間だけ非表示にする（24時間後にまた出る）
+        if (BE && Backend.pass) {
+          Backend.pass(user.id).catch(function (e) { console.error("pass failed", e); });
+        }
       }
     }, delay);
   }
@@ -1785,7 +1896,7 @@
   var lastFocused = null;
   // 手前（最前面）から順に。フォーカストラップ・背景クリック・Escで使う
   var OVERLAY_IDS = ["promoOverlay", "filterOverlay", "boostOverlay", "limitOverlay", "unmatchOverlay", "deleteOverlay", "blockOverlay", "reportOverlay", "policyOverlay",
-    "termsOverlay", "previewOverlay", "logViewer", "threadOverlay", "matchOverlay", "videoEditor"];
+    "termsOverlay", "previewOverlay", "logViewer", "threadOverlay", "matchOverlay", "videoEditor", "noticeOverlay"];
 
   function focusables(el) {
     return Array.prototype.filter.call(
@@ -1941,6 +2052,16 @@
       if (target) hideUser(target);
       viewerUser = null;
     });
+
+    // 運営からの注意：確認したら ack して次の注意へ
+    var noticeConfirm = document.getElementById("noticeConfirm");
+    if (noticeConfirm) noticeConfirm.addEventListener("click", function () {
+      var n = noticeQueue.shift();
+      if (n && BE && Backend.ackNotice) {
+        Backend.ackNotice(n.id).catch(function (e) { console.error("ack notice failed", e); });
+      }
+      showNextNotice();
+    });
   }
 
   // 英語表示のときは「都道府県」の選択を「国名」に差し替える（海外ユーザー向け）
@@ -2042,6 +2163,7 @@
       var vidInput = document.getElementById("pf-video");
 
       if (imgInput) imgInput.addEventListener("change", function () {
+        var ierr = document.getElementById("pf-image-err"); if (ierr) ierr.hidden = true; // 前回の露出エラーを消す
         var f = imgInput.files && imgInput.files[0];
         if (!f) { pendingImage = null; setUploadState("pf-image", "画像を選ぶ", false); updatePreview(); return; }
         downscaleImage(f, 512, function (dataUrl) {
@@ -2237,7 +2359,9 @@
           if (handleErr) handleErr.hidden = true;
           if (!handle) handle = "user" + String(Math.floor(Math.random() * 1e6)); // 空なら自動採番
         }
-        // 名前の禁止ワード検査（連絡先誘導・過度に性的な表現）
+        // 名前の禁止ワード検査（連絡先誘導・過度に性的な表現）。
+        // ※未成年を示す語・自己紹介(bio)は「本人に通告せず、黙って他ユーザーから隠す」方針のため、
+        //   ここでは弾かない（サーバー側トリガー profiles_protect_hidden がシャドウバンする）。
         var badName = findBanned(name);
         if (badName) {
           if (err) { err.textContent = "名前に使えない語が含まれています（" + badName + "）。"; err.hidden = false; }
@@ -2287,7 +2411,6 @@
           bio: (document.getElementById("pf-bio") || {}).value || "",
           handle: "@" + handle,
           inviteIds: inviteIds,
-          image2: pendingImage2 || "",
           pref: document.getElementById("pf-pref").value,
           gender: document.getElementById("pf-gender").value,
           tags: tags,

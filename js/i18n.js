@@ -52,7 +52,7 @@
     "利用規約": "Terms", "プライバシーポリシー": "Privacy Policy",
     "お問い合わせ・不適切な内容の報告": "Contact / report inappropriate content",
     "いま購入を開始できません": "Purchase can't start right now",
-    "時間をおいて、もう一度お試しください。解決しない場合は下記までご連絡ください。": "Please try again in a little while. If it keeps happening, contact us below.",
+    "時間をおいて、もう一度お試しください。": "Please try again in a little while.",
     "に同意します。不適切なコンテンツ・迷惑行為は禁止で、違反者は利用できなくなります。": " apply. Inappropriate content and abuse are prohibited; violators will be banned.",
     "同意が必要です。": "You must agree to continue.",
     "はじめる": "Get started", "保存する": "Save", "保存中…": "Saving…",
