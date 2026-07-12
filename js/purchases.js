@@ -94,10 +94,57 @@
       .receiptUpdated(function () { syncSub(); })
       .productUpdated(function () { syncSub(); });
 
+    // 初期化後に商品情報の取得(update)まで促す。通信の一時エラーで初期化が失敗したら
+    // 少し置いて1回だけ再試行（起動直後に購入して「商品未ロード」で弾かれるのを減らす）。
+    function loadAfterInit() {
+      return Promise.resolve()
+        .then(function () { syncSub(); return st.update ? st.update() : null; })
+        .then(function () { syncSub(); })
+        .catch(function () {});
+    }
     Promise.resolve()
       .then(function () { return st.initialize([plat]); })
-      .then(function () { syncSub(); })
-      .catch(function (e) { try { console.error("IAP init failed", e); } catch (_) {} });
+      .then(function () { return loadAfterInit(); })
+      .catch(function (e) {
+        try { console.error("IAP init failed", e); } catch (_) {}
+        return delay(2000)
+          .then(function () { return st.initialize([plat]); })
+          .then(function () { return loadAfterInit(); })
+          .catch(function () {});
+      });
+  }
+
+  // 小さな遅延（Promise）。商品ロード待ちのリトライ間隔に使う。
+  function delay(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+  // 指定商品の購入オファーを取得。まだ読み込めていなければ null。
+  function offerOf(id) {
+    try {
+      var st = store();
+      var product = st && st.get(id);
+      return (product && product.getOffer && product.getOffer()) || null;
+    } catch (e) { return null; }
+  }
+
+  // 商品情報が来るまで、ストア更新(update)をはさみつつ数回リトライして待つ。
+  // 起動直後やStoreKitの一時的な遅延で「まだ商品が来ていない」瞬間にタップしても、
+  // 1回で諦めず粘る（＝「出たり出なかったり」の取りこぼしを潰す）。取れれば offer、ダメなら null。
+  function waitForOffer(id, tries) {
+    var immediate = offerOf(id);
+    if (immediate) return Promise.resolve(immediate);
+    var st = store();
+    function attempt(n) {
+      if (n <= 0) return Promise.resolve(null);
+      return Promise.resolve()
+        .then(function () { return st && st.update ? st.update() : null; })
+        .then(function () { return delay(700); })
+        .then(function () {
+          var got = offerOf(id);
+          return got ? got : attempt(n - 1);
+        })
+        .catch(function () { return delay(700).then(function () { return attempt(n - 1); }); });
+    }
+    return attempt(tries || 6);   // 最大 ~4〜5秒粘る
   }
 
   // 購入。productKey="sub_month"|"boost"。
@@ -118,10 +165,6 @@
     var id = pid(productKey);
     if (!id) { if (onFail) onFail(new Error("unknown product: " + productKey)); return; }
 
-    function offerFor() {
-      var product = st.get(id);
-      return product && product.getOffer && product.getOffer();
-    }
     function placeOrder(offer) {
       return Promise.resolve()
         .then(function () { return st.order(offer); })
@@ -131,17 +174,11 @@
         });
     }
 
-    var offer = offerFor();
-    if (offer) { placeOrder(offer).catch(function (e) { if (onFail) onFail(e); }); return; }
-
-    // 商品情報がまだ読み込めていない（起動直後・通信待ち等）。
-    // ストアから取得し直して一度だけ再試行。それでも無ければ onFail（=画面に必ず通知）。
-    Promise.resolve()
-      .then(function () { return st.update ? st.update() : null; })
-      .then(function () {
-        var o2 = offerFor();
-        if (!o2) { if (onFail) onFail(new Error("offer not loaded: " + id)); return; }
-        return placeOrder(o2);
+    // 商品が読み込めるまで粘って待つ。それでも無ければ onFail（=画面に必ず通知）。
+    waitForOffer(id, 6)
+      .then(function (offer) {
+        if (!offer) { if (onFail) onFail(new Error("offer not loaded: " + id)); return; }
+        return placeOrder(offer);
       })
       .catch(function (e) { if (onFail) onFail(e); });
   }
