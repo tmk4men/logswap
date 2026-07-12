@@ -8,6 +8,7 @@
  *   DATABASE_URL="postgresql://postgres.<ref>:<pass>@aws-0-<region>.pooler.supabase.com:5432/postgres"
  *
  *   node server/admin/moderation.mjs                 # 直近の通報＋繰り返し違反者の集計
+ *   node server/admin/moderation.mjs find <keyword>  # 名前/ハンドルで検索（test/仮アカ棚卸し用・読み取りのみ）
  *   node server/admin/moderation.mjs user <id>       # 対象ユーザーの詳細（プロフィール・通報・成立数）
  *   node server/admin/moderation.mjs hide <id>       # スワイプから隔離（非表示）。削除ではない
  *   node server/admin/moderation.mjs unhide <id>     # 隔離を解除（誤検知の復帰）
@@ -98,6 +99,27 @@ try {
     }
     console.log(`通報された回数: ${got}   通報した回数: ${made}   成立数: ${mt}`);
     console.log(`\n対応:  hide ${arg} / unhide ${arg} / suspend ${arg} / unsuspend ${arg} / clearmedia ${arg} / notice ${arg} "本文" / ban ${arg} --confirm`);
+  } else if (cmd === "find") {
+    // 名前・ハンドルの部分一致で検索（読み取り専用）。test/仮アカウントの棚卸し用。
+    // 「anonymous」は名前未設定の既定表示名のこともあるので、消す前に必ず中身（成立数・作成日・メディア）で見分ける。
+    if (!arg) throw new Error('find <keyword> の keyword を指定してください（例: find test）');
+    const like = "%" + arg + "%";
+    const rows = (await db.query(
+      `select p.id, p.name, p.handle, p.pref, p.hidden, p.banned, p.created_at,
+              p.image_path, p.video_path,
+              (select count(*)::int from public.matches m where m.user_a=p.id or m.user_b=p.id) matches
+         from public.profiles p
+        where p.name ilike $1 or coalesce(p.handle,'') ilike $1
+        order by p.created_at desc limit 50`, [like])).rows;
+    console.log(`\n=== "${arg}" に一致するプロフィール（最大50件） ===`);
+    if (!rows.length) console.log("（該当なし）");
+    for (const p of rows) {
+      const badge = p.banned ? "🚫停止" : (p.hidden ? "🔒隔離" : "公開中");
+      console.log(`  ${badge}  ${p.name || "(名前なし)"} ${p.handle || ""}  地域:${p.pref || "-"}  成立:${p.matches}  画像:${p.image_path ? "有" : "無"} 動画:${p.video_path ? "有" : "無"}  作成:${jp(p.created_at)}`);
+      console.log(`      id: ${p.id}`);
+    }
+    console.log(`\n※ 成立数0・作成が最近・画像/動画なし＝テストアカの見分けの目安。実ユーザーを消さないよう確認してから:`);
+    console.log(`   削除:  node server/admin/moderation.mjs ban <id> --confirm`);
   } else if (cmd === "hide" || cmd === "unhide") {
     if (!arg) throw new Error(`${cmd} <id> の id を指定してください`);
     const val = cmd === "hide";
@@ -145,7 +167,7 @@ try {
       console.log("※ R2 の画像/動画の実体はここでは消えません（退会フローの Worker DELETE /media で消える分）。必要なら別途 R2 側で削除してください。");
     }
   } else {
-    console.log("使い方: moderation.mjs [list | user <id> | hide <id> | unhide <id> | suspend <id> | unsuspend <id> | clearmedia <id> | notice <id> \"本文\" | ban <id> --confirm]");
+    console.log("使い方: moderation.mjs [list | find <keyword> | user <id> | hide <id> | unhide <id> | suspend <id> | unsuspend <id> | clearmedia <id> | notice <id> \"本文\" | ban <id> --confirm]");
   }
 } catch (e) {
   console.error("エラー:", e.message);
