@@ -38,7 +38,11 @@
     var out = [];
     for (var i = 0; i < list.length; i++) {
       out.push(list[i]);
-      if ((i + 1) % n === 0) out.push({ __ad: true, id: "ad_" + (i + 1) });
+      if ((i + 1) % n === 0) {
+        var seq = (i + 1) / n;                 // 何枚目の広告か（1,2,3…）
+        out.push({ __ad: true, id: "ad_" + (i + 1),
+          __creative: (seq % 3 === 0) ? "boost" : "premier" }); // 3枚に1枚はブースト訴求
+      }
     }
     return out;
   }
@@ -1037,6 +1041,26 @@
     if (name === "chat") renderChat();
     if (name === "profile") renderProfile();
     if (name === "swipe") renderSwipeBoost();
+    updateLogBanner(name === "chat");
+  }
+
+  // ログ画面の下部バナー：チャットタブでだけ出す。
+  // ネイティブは AdMob 実バナー、Web等は自社バナー(DOM)にフォールバック。
+  function updateLogBanner(onChat) {
+    var chatView = document.getElementById("view-chat");
+    if (!onChat) {
+      if (Ads.hideLogBanner) Ads.hideLogBanner();
+      setLogHouseBanner(false);
+      if (chatView) chatView.classList.remove("has-native-banner");
+      return;
+    }
+    var nativeBanner = Ads.showLogBanner ? Ads.showLogBanner() : false;
+    if (chatView) chatView.classList.toggle("has-native-banner", nativeBanner);
+    setLogHouseBanner(!nativeBanner);   // 実バナーが出ない環境では自社バナーを出す
+  }
+  function setLogHouseBanner(show) {
+    var b = document.getElementById("logBanner");
+    if (b) b.hidden = !(show && CONFIG.ADS_ENABLED);
   }
 
   // ---------- チャット（枠バー＋未トーク（モザイク）＋トーク中）----------
@@ -1705,13 +1729,21 @@
 
   // 先頭2枚だけ描画して、スタック感を出す。
   function render() {
+    if (Ads.clearNativeOverlays) Ads.clearNativeOverlays(); // iOSネイティブ広告の重なりを防ぐ
     deckEl.innerHTML = "";
     var remaining = users.length - index;
     if (remaining <= 0) {
-      emptyEl.hidden = false;
       controlsEl.setAttribute("aria-hidden", "true");
       controlsEl.style.visibility = "hidden";
       hideCoach();
+      // 交換できる相手がいない時は、空表示のかわりに広告カードを1枚出す。
+      // （スワイプで消えない“据え置き”カード。ドラッグは付けない）
+      if (CONFIG.ADS_ENABLED) {
+        emptyEl.hidden = true;
+        deckEl.appendChild(buildCard({ __ad: true, id: "ad_empty", __empty: true, __creative: "premier" }, true));
+        return;
+      }
+      emptyEl.hidden = false;
       return;
     }
     emptyEl.hidden = true;
@@ -1730,22 +1762,59 @@
     if (!coachShown) showCoach();
   }
 
+  // 広告カードの中身（自社プロモ）。creative で内容を切替。文言・導線はここ1か所。
+  function adCreative(user) {
+    var price = CONFIG.PRICE_SUB_MONTH || "¥600";
+    if (user.__creative === "boost") {
+      return {
+        emoji: "⚡", eyebrow: "LogSwap ブースト",
+        title: "30分だけ、<br>あなたが上位に。",
+        sub: "カードが優先で表示され、交換されやすくなる。",
+        cta: "ブーストを使う →",
+        onTap: function () { openBoostDialog(); },
+        emptyNote: ""
+      };
+    }
+    return {
+      emoji: "👑", eyebrow: "LogSwap Premier",
+      title: "スワイプ無制限で、<br>気になる人を逃さない。",
+      sub: "しぼり込み検索・トーク枠拡張・広告オフ。",
+      cta: price + "／月ではじめる →",
+      onTap: function () { subscribe(); },
+      emptyNote: "いまはこの条件で交換できる相手がいません。時間をおくと、また増えます。"
+    };
+  }
+
   function buildCard(user, isTop) {
     var card = document.createElement("article");
     card.className = "card" + (isTop ? " enter" : "");
     card.dataset.id = user.id;
 
-    // 広告カード（枠のみ。AdMob/AdSense をここに差し込む想定）
+    // 広告カード。UIに溶け込むネイティブ風の枠を自前で描く。
+    // 実広告ネットワーク（AdMob Native Advanced / Banner・AdSense 等）は
+    // .ad-media[data-ad-slot="swipe"] に対して Ads.fillSwipeSlot() から差し込む。
+    // ネットワークが埋めなければ、この自社プロモ（プレミアム/ブースト）が表示される。
     if (user.__ad) {
-      card.className += " ad-card";
+      card.className += " ad-card " + (user.__creative === "boost" ? "ad-boost" : "ad-premier");
+      var cr = adCreative(user);
       card.innerHTML =
         '<div class="card-media ad-media" data-ad-slot="swipe">' +
-          '<span class="ad-badge">広告</span>' +
-          '<div class="ad-inner">' +
-            '<svg viewBox="0 0 24 24" width="34" height="34" aria-hidden="true" class="ico-line"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg>' +
-            '<p class="ad-note">スポンサー</p>' +
+          '<span class="ad-badge">PR</span>' +
+          (user.__empty ? '<p class="ad-empty-note">' + esc(cr.emptyNote) + "</p>" : "") +
+          '<div class="ad-hero">' +
+            '<span class="ad-emoji" aria-hidden="true">' + cr.emoji + "</span>" +
+            '<span class="ad-eyebrow">' + esc(cr.eyebrow) + "</span>" +
+            '<h3 class="ad-title">' + cr.title + "</h3>" +
+            '<p class="ad-sub">' + esc(cr.sub) + "</p>" +
           "</div>" +
+          '<button class="ad-cta" type="button">' + esc(cr.cta) + "</button>" +
         "</div>";
+      var slot = card.querySelector(".ad-media");
+      var cta = card.querySelector(".ad-cta");
+      if (cta) cta.addEventListener("click", function (e) { e.stopPropagation(); cr.onTap(); });
+      // 先頭カードだけ Native Advanced 広告を読み込む（あれば枠を差し替え／無ければ自社プロモ）。
+      // 背面カードは読み込まない（広告リクエストの無駄・iOSオーバーレイ重複を防ぐ）。
+      if (isTop) { try { if (Ads.fillSwipeSlot) Ads.fillSwipeSlot(slot, { onTap: cr.onTap, card: card }); } catch (e) {} }
       return card;
     }
 
@@ -1785,6 +1854,8 @@
       if (e.target.closest(".thumbs")) return; // サムネのスクロールは妨げない
       dragging = true;
       card.classList.add("dragging");
+      // iOSネイティブ広告オーバーレイはCSS変形に追従できないので、ドラッグ中は隠す。
+      if (user.__ad && Ads.clearNativeOverlays) Ads.clearNativeOverlays();
       hideCoach();
       startX = e.clientX; startY = e.clientY;
       if (e.pointerId != null && card.setPointerCapture) card.setPointerCapture(e.pointerId);
@@ -2155,6 +2226,9 @@
     };
     var resetBtn = document.getElementById("resetBtn");
     if (resetBtn) resetBtn.onclick = init;
+
+    var logBanner = document.getElementById("logBanner");
+    if (logBanner) logBanner.onclick = function () { subscribe(); };
 
     // 初回プロフィール入力フォーム（app.html のみ）
     var pform = document.getElementById("profileSetup");
@@ -2643,6 +2717,7 @@
   // 課金の初期化：加入状態と消耗型ブーストの付与をストアの実イベントに結線。
   // Web/デモではプラグインが無いので no-op（購入は buy() 側でデモ動作）。
   Purchases.init({ onSubChange: applySubState, onBoostGranted: grantBoost });
+  if (Ads.initAds) Ads.initAds();   // AdMob SDK 初期化（ネイティブのみ）
   init();
   setupReveal();
 

@@ -22,3 +22,6 @@ android/local.properties
 android/app/release/
 *.keystore
 *.jks
+
+# 社外秘（公開リポジトリ／GitHub Pagesに載せない）
+収益予想.md

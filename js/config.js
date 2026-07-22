@@ -12,8 +12,8 @@
     SUPABASE_URL: "https://pryabdockektzvghowcb.supabase.co",
     SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InByeWFiZG9ja2VrdHp2Z2hvd2NiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMwNjg0NjgsImV4cCI6MjA5ODY0NDQ2OH0.1ybnhHygEZ_kNdqqjQ5ot4pnPgmKOZrTR6XxwE42Gak",
     WORKER_URL: "https://logswap-media.tmk4men.workers.dev", // 画像・動画アップロード用 Cloudflare Worker
-    ADS_ENABLED: false,        // スワイプ内に広告カードを差し込むか
-    AD_INTERVAL: 6,            // 実カード何枚ごとに広告カードを1枚挟むか
+    ADS_ENABLED: true,         // スワイプ内に広告カードを差し込むか
+    AD_INTERVAL: 2,            // 実カード何枚ごとに広告カードを1枚挟むか（2＝2回に1回）
 
     // ── トーク枠（メッセージできる人数）─────────────────────────
     MSG_SLOTS_FREE: 5,         // 無料でトークを開ける人数
@@ -55,10 +55,14 @@
     // 本番化：@capacitor-community/admob を入れて AD_REWARDED_ENABLED:true、
     // 広告ユニットIDを自分のものへ（既定はGoogleのテストID）。
     AD_REWARDED_ENABLED: false,
+    AD_BANNER_ENABLED: true,     // ログ画面の下部に AdMob バナーを出す（ネイティブのみ）
+    AD_BANNER_MARGIN: 56,        // タブバーに重ならないよう下端から浮かせる余白(px)
+    AD_NATIVE_ENABLED: true,     // スワイプ内カードに AdMob ネイティブ広告を出す（ネイティブのみ）
     ADMOB: {
-      appId: "",
-      rewarded: "ca-app-pub-3940256099942544/5224354917", // Googleテスト用
-      banner: "ca-app-pub-3940256099942544/6300978111"     // Googleテスト用
+      appId: "ca-app-pub-2783540275927131~8817671745",       // LogSwap アプリID（本番）
+      rewarded: "ca-app-pub-3940256099942544/5224354917",    // ※未設定：Googleテスト用のまま
+      banner: "ca-app-pub-2783540275927131/3345853210",      // ログ画面バナー（本番）
+      native: "ca-app-pub-2783540275927131/5857687677"       // スワイプ内 ネイティブ広告（本番）
     }
   };
   var override = {};

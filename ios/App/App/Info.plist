@@ -49,5 +49,9 @@
 	<false/>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>プロフィール画像やログ動画を、端末に保存済みの写真・動画から選ぶために写真ライブラリを使用します。撮影はしません。</string>
+	<key>GADApplicationIdentifier</key>
+	<string>ca-app-pub-2783540275927131~8817671745</string>
+	<key>NSUserTrackingUsageDescription</key>
+	<string>広告をあなたに合わせて最適化するために使用します。許可しない場合も、関連性の低い広告が表示されます。</string>
 </dict>
 </plist>

@@ -192,23 +192,85 @@ a { color: inherit; text-decoration: none; }
 }
 .card[data-dir="yes"] .card-media::after { background: var(--accent); }
 
-/* 広告カード（スワイプ内。既定は無効。AdMob/AdSense をここに差す） */
+/* 広告カード（スワイプ内。UIに溶け込むネイティブ風。実広告はこの枠に差す） */
 .ad-media {
-  display: flex; align-items: center; justify-content: center;
+  display: flex; flex-direction: column; justify-content: space-between;
+  padding: 30px 24px 26px; color: #fff; overflow: hidden;
+}
+.ad-premier .ad-media {
   background:
-    radial-gradient(120% 90% at 50% 0%, var(--paper) 0%, var(--paper-2) 60%);
+    radial-gradient(90% 55% at 82% 8%, rgba(255,255,255,0.30) 0%, rgba(255,255,255,0) 55%),
+    linear-gradient(158deg, #ff5cb3 0%, #ff2f9c 34%, #b31f77 68%, #6d134f 100%);
+}
+.ad-boost .ad-media {
+  background:
+    radial-gradient(90% 55% at 82% 8%, rgba(255,255,255,0.30) 0%, rgba(255,255,255,0) 55%),
+    linear-gradient(158deg, #4defd0 0%, #1cc7ab 36%, #11957f 70%, #0a5f51 100%);
+}
+/* やわらかい発光の飾り */
+.ad-media::before {
+  content: ""; position: absolute; right: -70px; bottom: -90px;
+  width: 260px; height: 260px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0) 70%);
+  pointer-events: none;
 }
 .ad-badge {
-  position: absolute; top: 14px; left: 14px; z-index: 2;
-  font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
-  color: var(--muted); background: rgba(255, 255, 255, 0.72);
-  border: 1px solid var(--line); border-radius: 999px; padding: 3px 9px;
+  position: absolute; top: 16px; left: 16px; z-index: 2;
+  font-size: 11px; font-weight: 800; letter-spacing: 0.08em;
+  color: #fff; background: rgba(255, 255, 255, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.35); border-radius: 999px; padding: 3px 10px;
+  backdrop-filter: blur(2px);
 }
-.ad-inner {
-  display: flex; flex-direction: column; align-items: center; gap: 8px;
-  color: var(--muted);
+.ad-empty-note {
+  position: relative; z-index: 1; margin: 26px 0 0;
+  font-size: 12.5px; line-height: 1.6; font-weight: 600;
+  color: rgba(255, 255, 255, 0.82);
 }
-.ad-note { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: 0.02em; }
+.ad-hero { position: relative; z-index: 1; margin-top: auto; }
+.ad-emoji { font-size: 40px; line-height: 1; display: block; margin-bottom: 12px; }
+.ad-eyebrow {
+  display: inline-block; font-size: 12px; font-weight: 800; letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.9); margin-bottom: 8px;
+}
+.ad-title {
+  margin: 0 0 10px; font-size: 25px; line-height: 1.32; font-weight: 800;
+  letter-spacing: -0.01em; text-shadow: 0 1px 12px rgba(27, 10, 30, 0.28);
+}
+.ad-sub { margin: 0; font-size: 13.5px; line-height: 1.6; color: rgba(255, 255, 255, 0.9); }
+.ad-cta {
+  position: relative; z-index: 1; margin-top: 18px;
+  width: 100%; padding: 14px 16px; border: 0; border-radius: 14px;
+  font-family: inherit; font-size: 15px; font-weight: 800; letter-spacing: 0.01em;
+  color: #b31f77; background: #fff; cursor: pointer;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.22);
+  transition: transform 0.12s var(--ease), box-shadow 0.12s var(--ease);
+}
+.ad-boost .ad-cta { color: #0a5f51; }
+.ad-cta:active { transform: translateY(1px) scale(0.99); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2); }
+
+/* AdMob Native Advanced（Android/Web は返ってきたアセットをDOM描画） */
+.ad-card .nad-media { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.nad-media-empty { background: linear-gradient(155deg, #2a2a34, #14141a); }
+.ad-card .nad-scrim {
+  position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(180deg, rgba(0,0,0,0) 42%, rgba(10,8,14,0.55) 72%, rgba(10,8,14,0.92) 100%);
+}
+.nad-adchoices { position: absolute; top: 14px; right: 12px; z-index: 2; width: 16px; height: 16px; opacity: 0.9; }
+.nad-info { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; padding: 18px 18px 20px; color: #fff; }
+.nad-row { display: flex; align-items: center; gap: 10px; }
+.nad-icon { width: 42px; height: 42px; border-radius: 10px; object-fit: cover; flex: 0 0 auto; }
+.nad-lines { display: flex; flex-direction: column; min-width: 0; }
+.nad-head { font-size: 17px; font-weight: 800; line-height: 1.3; text-shadow: 0 1px 10px rgba(0,0,0,0.45); }
+.nad-adv { font-size: 12px; color: rgba(255,255,255,0.82); }
+.nad-body {
+  margin: 8px 0 0; font-size: 13px; line-height: 1.5; color: rgba(255,255,255,0.9);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.nad-cta {
+  margin-top: 12px; width: 100%; padding: 12px 14px; border: 0; border-radius: 13px;
+  font-family: inherit; font-size: 14.5px; font-weight: 800; color: #b31f77; background: #fff;
+  cursor: pointer; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+}
 
 /* カード下部：丸いアイコン＋名前（Tinder風） */
 .card-id {
@@ -585,6 +647,34 @@ a { color: inherit; text-decoration: none; }
 /* ---------------- 下部タブ＋各ビュー ---------------- */
 .view-pad { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 14px 16px 18px; }
 .view-title { margin: 4px 0 14px; font-size: 20px; font-weight: 900; letter-spacing: -0.01em; }
+
+/* ネイティブ実バナー表示時は、下部オーバーレイに隠れないよう余白を確保 */
+#view-chat.has-native-banner { padding-bottom: 112px; }
+
+/* ログ下部バナー（自社／Webフォールバック。ネイティブは実AdMobバナー） */
+.log-banner {
+  position: sticky; bottom: 0; z-index: 3;
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; margin-top: 14px; padding: 12px 14px;
+  border: 0; border-radius: 16px; cursor: pointer; text-align: left;
+  color: #fff; font-family: inherit;
+  background:
+    radial-gradient(90% 130% at 88% 6%, rgba(255,255,255,0.30) 0%, rgba(255,255,255,0) 55%),
+    linear-gradient(120deg, #ff5cb3 0%, #ff2f9c 46%, #b31f77 100%);
+  box-shadow: 0 12px 28px rgba(45, 15, 40, 0.38);
+  transition: transform 0.12s var(--ease);
+}
+.log-banner:active { transform: translateY(1px) scale(0.995); }
+.lb-badge {
+  flex: 0 0 auto; font-size: 10px; font-weight: 800; letter-spacing: 0.08em;
+  color: #fff; background: rgba(255,255,255,0.22);
+  border: 1px solid rgba(255,255,255,0.4); border-radius: 999px; padding: 2px 7px;
+}
+.lb-emoji { flex: 0 0 auto; font-size: 22px; line-height: 1; }
+.lb-text { display: flex; flex-direction: column; line-height: 1.32; margin-right: auto; min-width: 0; }
+.lb-title { font-size: 14px; font-weight: 800; }
+.lb-sub { font-size: 11.5px; color: rgba(255,255,255,0.9); }
+.lb-arrow { flex: 0 0 auto; font-size: 18px; font-weight: 800; opacity: 0.9; }
 
 .tabbar {
   flex: 0 0 auto; display: flex;
