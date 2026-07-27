@@ -56,21 +56,47 @@
   var bannerCreated = false;
   function noop() {}
 
+  // iOS の ATT（App Tracking Transparency）許諾。
+  // AdMob SDK を初期化する前に必ず1回呼ぶ（App Store 審査 5.1.2(i) の要件）。
+  // 未回答のときだけダイアログを出し、許可/不許可どちらでも done() で先に進む
+  // （不許可なら IDFA なしの非パーソナライズ広告になるだけ）。
+  function requestTracking(p, done) {
+    if (!isIOS() || !p || typeof p.requestTrackingAuthorization !== "function") { done(); return; }
+    Promise.resolve()
+      .then(function () {
+        if (typeof p.trackingAuthorizationStatus !== "function") return null;
+        return p.trackingAuthorizationStatus();
+      })
+      .then(function (res) {
+        // 既に回答済み（authorized/denied/restricted）なら再表示しない
+        if (res && res.status && res.status !== "notDetermined") return null;
+        return p.requestTrackingAuthorization();
+      })
+      .catch(noop)
+      .then(function () { done(); });
+  }
+
   // AdMob SDK 初期化（アプリ起動時に1回）。ネイティブ以外は no-op。
   function initAds() {
     var p = admob();
-    if (p) {
-      Promise.resolve()
-        .then(function () { return p.initialize({ initializeForTesting: false }); })
-        .catch(noop);
-    }
     var np = nativeAds();
-    if (np && CONFIG.AD_NATIVE_ENABLED) {
-      var appId = (CONFIG.ADMOB && CONFIG.ADMOB.appId) || "";
-      Promise.resolve()
-        .then(function () { return np.initialize({ appId: appId }); })
-        .catch(noop);
+    function start() {
+      if (p) {
+        Promise.resolve()
+          .then(function () { return p.initialize({ initializeForTesting: false }); })
+          .catch(noop);
+      }
+      if (np && CONFIG.AD_NATIVE_ENABLED) {
+        var appId = (CONFIG.ADMOB && CONFIG.ADMOB.appId) || "";
+        Promise.resolve()
+          .then(function () { return np.initialize({ appId: appId }); })
+          .catch(noop);
+      }
     }
+    if (!isIOS()) { start(); return; }
+    // 起動直後はアプリがまだ active でなくダイアログが黙って捨てられることがあるため
+    // 少しだけ待ってから許諾を求める。
+    setTimeout(function () { requestTracking(p, start); }, 1200);
   }
 
   // ログ画面用バナーを表示。ネイティブ実バナーを出せたら true（＝自社バナーは不要）、
