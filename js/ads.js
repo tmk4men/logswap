@@ -56,24 +56,36 @@
   var bannerCreated = false;
   function noop() {}
 
-  // iOS の ATT（App Tracking Transparency）許諾。
-  // AdMob SDK を初期化する前に必ず1回呼ぶ（App Store 審査 5.1.2(i) の要件）。
-  // 未回答のときだけダイアログを出し、許可/不許可どちらでも done() で先に進む
-  // （不許可なら IDFA なしの非パーソナライズ広告になるだけ）。
-  function requestTracking(p, done) {
-    if (!isIOS() || !p || typeof p.requestTrackingAuthorization !== "function") { done(); return; }
-    Promise.resolve()
-      .then(function () {
-        if (typeof p.trackingAuthorizationStatus !== "function") return null;
-        return p.trackingAuthorizationStatus();
-      })
-      .then(function (res) {
-        // 既に回答済み（authorized/denied/restricted）なら再表示しない
-        if (res && res.status && res.status !== "notDetermined") return null;
-        return p.requestTrackingAuthorization();
-      })
-      .catch(noop)
-      .then(function () { done(); });
+  // iOS の ATT（App Tracking Transparency）許諾待ち。
+  //
+  // ダイアログを出すのは AppDelegate.swift（ネイティブ）。JS からプラグイン経由で
+  // 出す方式は、WebView の読み込みやプラグイン登録の失敗で「一度も出ない」事故に
+  // なる（審査 5.1.2(i) でこれを踏んだ）。ここでは回答が確定するまで待ってから
+  // AdMob を初期化する＝許可された場合に IDFA が確実に使われるようにする。
+  //
+  // 保険として、3秒待っても未回答のまま（＝ネイティブ側が出せていない）なら
+  // JS からも1回だけ要求する。許可/不許可どちらでも done() で先へ進む。
+  function waitForTracking(p, done) {
+    if (!isIOS() || !p || typeof p.trackingAuthorizationStatus !== "function") { done(); return; }
+    var tries = 0, asked = false, finished = false;
+    function finish() { if (!finished) { finished = true; done(); } }
+    function tick() {
+      Promise.resolve()
+        .then(function () { return p.trackingAuthorizationStatus(); })
+        .then(function (res) {
+          // 回答済み（authorized/denied/restricted）になったら初期化へ
+          if (res && res.status && res.status !== "notDetermined") { finish(); return; }
+          tries++;
+          if (tries === 6 && !asked && typeof p.requestTrackingAuthorization === "function") {
+            asked = true;                      // 3秒経っても未回答＝ネイティブが出せていない
+            Promise.resolve(p.requestTrackingAuthorization()).catch(noop);
+          }
+          if (tries > 24) { finish(); return; } // 12秒で諦めて非パーソナライズのまま進む
+          setTimeout(tick, 500);
+        })
+        .catch(function () { finish(); });
+    }
+    tick();
   }
 
   // AdMob SDK 初期化（アプリ起動時に1回）。ネイティブ以外は no-op。
@@ -94,9 +106,8 @@
       }
     }
     if (!isIOS()) { start(); return; }
-    // 起動直後はアプリがまだ active でなくダイアログが黙って捨てられることがあるため
-    // 少しだけ待ってから許諾を求める。
-    setTimeout(function () { requestTracking(p, start); }, 1200);
+    // iOS は ATT の回答が出てから AdMob を初期化する（ダイアログ自体はネイティブが出す）。
+    waitForTracking(p, start);
   }
 
   // ログ画面用バナーを表示。ネイティブ実バナーを出せたら true（＝自社バナーは不要）、

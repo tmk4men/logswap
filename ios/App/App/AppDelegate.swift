@@ -1,10 +1,16 @@
 import UIKit
 import Capacitor
+#if canImport(AppTrackingTransparency)
+import AppTrackingTransparency
+#endif
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
     var window: UIWindow?
+
+    /// ATT の要求を1回だけ出すためのフラグ。
+    private var didRequestTracking = false
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
@@ -27,6 +33,32 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func applicationDidBecomeActive(_ application: UIApplication) {
         // Restart any tasks that were paused (or not yet started) while the application was inactive. If the application was previously in the background, optionally refresh the user interface.
+
+        // App Tracking Transparency（App Store 審査 5.1.2(i)）。
+        // 以前は WebView 側（js/ads.js）から AdMob プラグイン経由で呼んでいたが、
+        // WebView の読み込み状況やプラグインの登録状況に左右されるため、ネイティブで
+        // 起動直後に必ず1回出す。ここが許諾ダイアログの唯一の起点。
+        requestTrackingAuthorizationIfNeeded()
+    }
+
+    /// 未回答のときだけ ATT の許諾ダイアログを表示する。
+    /// iOS はアプリが active でない間に要求するとダイアログを出さずに完了してしまうため、
+    /// active になってから少し待って要求し、その時点で active でなければ次回に持ち越す。
+    private func requestTrackingAuthorizationIfNeeded() {
+        #if canImport(AppTrackingTransparency)
+        if #available(iOS 14, *) {
+            if didRequestTracking { return }
+            if ATTrackingManager.trackingAuthorizationStatus != .notDetermined { return }
+            didRequestTracking = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
+                guard UIApplication.shared.applicationState == .active else {
+                    self?.didRequestTracking = false
+                    return
+                }
+                ATTrackingManager.requestTrackingAuthorization { _ in }
+            }
+        }
+        #endif
     }
 
     func applicationWillTerminate(_ application: UIApplication) {
