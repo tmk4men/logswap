@@ -51,6 +51,23 @@
     "私は18歳以上です。": "I am 18 or older", "18歳以上の方のみ利用できます。": "Only for ages 18 and older.",
     "利用規約": "Terms", "プライバシーポリシー": "Privacy Policy",
     "お問い合わせ・不適切な内容の報告": "Contact / report inappropriate content",
+
+    // ---- 広告のトラッキング設定（iOS の ATT） ----
+    "広告のトラッキング設定": "Ad tracking",
+    "確認中…": "Checking…",
+    "許可": "Allowed", "許可しない": "Not allowed", "端末で制限中": "Restricted", "未設定": "Not set",
+    "トラッキングの許可を確認する": "Ask for tracking permission",
+    "iOS の設定を開く": "Open iOS Settings",
+    "広告の最適化のために広告識別子（IDFA）を使ってよいかどうかを設定します。":
+      "Choose whether this device's advertising identifier (IDFA) may be used to personalize ads.",
+    "この端末の広告識別子（IDFA）を広告の最適化に使うことを許可しています。iOS の「設定 > プライバシーとセキュリティ > トラッキング」からいつでも変更できます。":
+      "You allow this device's advertising identifier (IDFA) to be used to personalize ads. You can change this any time in iOS Settings > Privacy & Security > Tracking.",
+    "広告識別子は広告に使われず、パーソナライズされていない広告が表示されます。iOS の「設定 > プライバシーとセキュリティ > トラッキング」からいつでも変更できます。":
+      "The advertising identifier is not used, so you see non-personalized ads. You can change this any time in iOS Settings > Privacy & Security > Tracking.",
+    "iOS の「設定 > プライバシーとセキュリティ > トラッキング」で「Appからのトラッキング要求を許可」がオフになっているため、許可を確認できません。オンにすると設定できます。":
+      "\"Allow Apps to Request to Track\" is turned off in iOS Settings > Privacy & Security > Tracking, so permission cannot be requested. Turn it on to change this setting.",
+    "広告の最適化のために広告識別子（IDFA）を使ってよいかを確認します。下のボタンを押すと確認のダイアログが表示されます。許可しない場合も、アプリはこれまでどおり使えます。":
+      "We ask whether this device's advertising identifier (IDFA) may be used to personalize ads. Tap the button below to show the permission dialog. The app works the same either way.",
     "いま購入を開始できません": "Purchase can't start right now",
     "時間をおいて、もう一度お試しください。": "Please try again in a little while.",
     "に同意します。不適切なコンテンツ・迷惑行為は禁止で、違反者は利用できなくなります。": " apply. Inappropriate content and abuse are prohibited; violators will be banned.",

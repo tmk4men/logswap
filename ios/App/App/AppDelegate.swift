@@ -9,8 +9,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     var window: UIWindow?
 
-    /// ATT の要求を1回だけ出すためのフラグ。
-    private var didRequestTracking = false
+    /// ATT の要求が進行中かどうか（多重に呼ばないためのガード）。
+    private var trackingRequestInFlight = false
+    /// ATT の要求を試した回数。ダイアログが出せずに終わったときだけ増える。
+    private var trackingRequestAttempts = 0
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
@@ -37,25 +39,45 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // App Tracking Transparency（App Store 審査 5.1.2(i)）。
         // 以前は WebView 側（js/ads.js）から AdMob プラグイン経由で呼んでいたが、
         // WebView の読み込み状況やプラグインの登録状況に左右されるため、ネイティブで
-        // 起動直後に必ず1回出す。ここが許諾ダイアログの唯一の起点。
+        // 起動直後に出す。ここが自動表示の起点。
+        // 手動の導線はプロフィール画面の「広告のトラッキング設定」にもある
+        // （回答済み・端末側でトラッキング要求が禁止されていると自動では何も出ないため）。
         requestTrackingAuthorizationIfNeeded()
     }
 
     /// 未回答のときだけ ATT の許諾ダイアログを表示する。
-    /// iOS はアプリが active でない間に要求するとダイアログを出さずに完了してしまうため、
-    /// active になってから少し待って要求し、その時点で active でなければ次回に持ち越す。
+    ///
+    /// iOS はアプリが active でない間に要求するとダイアログを出さずに完了してしまう。
+    /// さらに、active でも起動直後のウインドウ生成前だと「呼んだのに出ない」ことがあり、
+    /// そのとき完了ハンドラには .notDetermined のまま返ってくる（＝出せなかった合図）。
+    /// なので出せなかったら諦めずに数回やり直す。
     private func requestTrackingAuthorizationIfNeeded() {
         #if canImport(AppTrackingTransparency)
         if #available(iOS 14, *) {
-            if didRequestTracking { return }
+            if trackingRequestInFlight { return }
+            // 回答済み（許可/拒否/制限）なら OS がもうダイアログを出さないので何もしない。
             if ATTrackingManager.trackingAuthorizationStatus != .notDetermined { return }
-            didRequestTracking = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
+            if trackingRequestAttempts >= 5 { return }
+            trackingRequestInFlight = true
+            trackingRequestAttempts += 1
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
                 guard UIApplication.shared.applicationState == .active else {
-                    self?.didRequestTracking = false
+                    // まだ active でない＝出しても無視される。次の active でやり直す。
+                    self?.trackingRequestInFlight = false
+                    self?.trackingRequestAttempts -= 1
                     return
                 }
-                ATTrackingManager.requestTrackingAuthorization { _ in }
+                ATTrackingManager.requestTrackingAuthorization { status in
+                    DispatchQueue.main.async {
+                        self?.trackingRequestInFlight = false
+                        // 未回答のまま返った＝ダイアログを出せていない。少し待って再挑戦。
+                        if status == .notDetermined {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                                self?.requestTrackingAuthorizationIfNeeded()
+                            }
+                        }
+                    }
+                }
             }
         }
         #endif

@@ -212,7 +212,49 @@
     return true; // 読み込みを開始（非同期。失敗時は自社プロモが残る）
   }
 
+  // --- ATT（プロフィール画面の「広告のトラッキング設定」から使う） ---------
+  //
+  // ダイアログの主起点はネイティブ（AppDelegate）だが、
+  //  ・審査端末に前バージョンが残っていて回答済みになっている
+  //  ・端末の「Appからのトラッキング要求を許可」が OFF
+  // のどちらでも「起動しても何も出ない」状態になり、審査で ATT 未実装と見なされる。
+  // そこで、いつでも到達できる手動の導線をアプリ内に用意して状態も見せる。
+
+  // "authorized" / "denied" / "restricted" / "notDetermined" / "unsupported"
+  function trackingStatus() {
+    var p = admob();
+    if (!isIOS() || !p || typeof p.trackingAuthorizationStatus !== "function") {
+      return Promise.resolve("unsupported");
+    }
+    return Promise.resolve()
+      .then(function () { return p.trackingAuthorizationStatus(); })
+      .then(function (res) { return (res && res.status) || "unsupported"; })
+      .catch(function () { return "unsupported"; });
+  }
+
+  // 未回答なら OS のダイアログを出す。回答後の状態を返す。
+  function requestTracking() {
+    var p = admob();
+    if (!isIOS() || !p || typeof p.requestTrackingAuthorization !== "function") {
+      return Promise.resolve("unsupported");
+    }
+    return Promise.resolve()
+      .then(function () { return p.requestTrackingAuthorization(); })
+      .then(function () { return trackingStatus(); })
+      .catch(function () { return trackingStatus(); });
+  }
+
+  // iOS の「設定」アプリを開く。Capacitor は http(s) 以外のスキームを
+  // UIApplication.open に流すので app-settings: が通る。失敗しても実害なし。
+  function openIOSSettings() {
+    try { window.location.href = "app-settings:"; } catch (e) { /* 案内文だけ残す */ }
+  }
+
   window.LogSwapAds = {
+    trackingStatus: trackingStatus,
+    requestTracking: requestTracking,
+    openIOSSettings: openIOSSettings,
+    isIOS: isIOS,
     showRewarded: showRewarded,
     fillSwipeSlot: fillSwipeSlot,
     clearNativeOverlays: clearNativeOverlays,

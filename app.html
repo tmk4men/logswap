@@ -38,7 +38,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700&family=M+PLUS+Rounded+1c:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=20260709a" />
+  <link rel="stylesheet" href="css/style.css?v=20260801a" />
 </head>
 <body class="app-page">
   <div class="app-shell">
@@ -310,6 +310,20 @@
         <p class="boost-note" id="boostNote" hidden></p>
       </div>
 
+      <!--
+        広告のトラッキング設定（iOS の App Tracking Transparency）。
+        初回起動時に自動で出るが、回答済み・端末側でトラッキング要求が禁止されている
+        場合は何も出ないため、いつでも到達できる導線をここに置く（審査メモで案内する）。
+      -->
+      <section class="track-card" id="trackCard" hidden>
+        <div class="track-head">
+          <h3 class="track-title">広告のトラッキング設定</h3>
+          <span class="track-state" id="trackState">確認中…</span>
+        </div>
+        <p class="track-note" id="trackNote">広告の最適化のために広告識別子（IDFA）を使ってよいかどうかを設定します。</p>
+        <button class="btn-ghost sm" id="trackBtn" type="button">トラッキングの許可を確認する</button>
+      </section>
+
       <button class="btn-danger-link" id="deleteAccountBtn" type="button">アカウントを削除</button>
       <div class="contact-row">
         <a class="contact-link" id="contactLink" href="mailto:tomokiskriiiabc@gmail.com?subject=LogSwap%20report">お問い合わせ・不適切な内容の報告</a>
@@ -429,7 +443,7 @@
 
         <h3>5. 広告について</h3>
         <p>本サービスは無料でご利用いただくために、アプリ内に広告を表示します（スワイプ画面のカード内広告、ログ画面下部のバナー広告、および一部の無料機能を解放するための動画広告）。広告の配信には Google の <strong>AdMob</strong> を利用しており、広告の表示・最適化・効果測定のために、端末の広告識別子（advertising ID / IDFA）、おおよその位置情報、利用状況が Google LLC によって取得・利用される場合があります。詳しくは Google のプライバシーポリシー（policies.google.com/privacy）をご確認ください。</p>
-        <p>iOS では初回起動時に「トラッキングの許可」を確認します。許可しない場合、広告識別子は広告のために利用されず、パーソナライズされていない広告が表示されます。設定は iOS の「設定 &gt; プライバシーとセキュリティ &gt; トラッキング」から、Android は「設定 &gt; Google &gt; 広告」からいつでも変更できます。</p>
+        <p>iOS では初回起動時に「トラッキングの許可」を確認します。許可しない場合、広告識別子は広告のために利用されず、パーソナライズされていない広告が表示されます。設定は、アプリ内の「プロフィール &gt; 広告のトラッキング設定」、または iOS の「設定 &gt; プライバシーとセキュリティ &gt; トラッキング」から、Android は「設定 &gt; Google &gt; 広告」からいつでも確認・変更できます。</p>
 
         <h3>6. アカウント・データの削除方法</h3>
         <p>アプリ内の「プロフィール」タブにある<strong>「アカウントを削除」</strong>から、いつでもアカウントと関連データ（プロフィール・画像・動画・成立した相手・トーク・ブロック／通報の記録など）を、サーバー上のものも含めてすべて削除できます。削除すると元に戻せません。</p>
@@ -690,12 +704,12 @@
   </div>
 
   <script src="js/config.js?v=20260709a"></script>
-  <script src="js/i18n.js?v=20260709a"></script>
+  <script src="js/i18n.js?v=20260801a"></script>
   <script src="js/vendor/supabase.js?v=20260709a"></script>
   <script src="js/backend.js?v=20260709a"></script>
-  <script src="js/ads.js?v=20260731a"></script>
+  <script src="js/ads.js?v=20260801a"></script>
   <script src="js/purchases.js?v=20260712a"></script>
   <script src="js/data.js?v=20260709a"></script>
-  <script src="js/app.js?v=20260709a"></script>
+  <script src="js/app.js?v=20260801a"></script>
 </body>
 </html>
