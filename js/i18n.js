@@ -56,6 +56,9 @@
     "広告のトラッキング設定": "Ad tracking",
     "確認中…": "Checking…",
     "許可": "Allowed", "許可しない": "Not allowed", "端末で制限中": "Restricted", "未設定": "Not set",
+    "確認できません": "Unavailable",
+    "この端末では現在の状態を取得できませんでした。iOS の「設定 > プライバシーとセキュリティ > トラッキング」から、このアプリのトラッキング設定を確認・変更できます。":
+      "The current status could not be read on this device. You can review and change this app's tracking setting in iOS Settings > Privacy & Security > Tracking.",
     "トラッキングの許可を確認する": "Ask for tracking permission",
     "iOS の設定を開く": "Open iOS Settings",
     "広告の最適化のために広告識別子（IDFA）を使ってよいかどうかを設定します。":

@@ -2097,9 +2097,12 @@
       authorized: "許可",
       denied: "許可しない",
       restricted: "端末で制限中",
-      notDetermined: "未設定"
+      notDetermined: "未設定",
+      unsupported: "確認できません"
     };
     var NOTE = {
+      unsupported:
+        "この端末では現在の状態を取得できませんでした。iOS の「設定 > プライバシーとセキュリティ > トラッキング」から、このアプリのトラッキング設定を確認・変更できます。",
       authorized:
         "この端末の広告識別子（IDFA）を広告の最適化に使うことを許可しています。iOS の「設定 > プライバシーとセキュリティ > トラッキング」からいつでも変更できます。",
       denied:
@@ -2111,7 +2114,8 @@
     };
 
     function paint(status) {
-      if (status === "unsupported") { card.hidden = true; return; }
+      // iOS では絶対に隠さない。AdMob プラグインが未登録で状態を取れない場合でも
+      // カードごと消えると、審査メモで案内した導線が存在しないことになる（＝ 5.1.2(i) の再発）。
       card.hidden = false;
       var t = window.I18N ? function (s) { return window.I18N.t(s); } : function (s) { return s; };
       stateEl.textContent = t(LABEL[status] || "未設定");
@@ -2126,11 +2130,20 @@
       if (btn.dataset.attStatus === "notDetermined") {
         ads.requestTracking().then(paint);
       } else {
-        ads.openIOSSettings();
+        ads.openIOSSettings();   // プラグイン不要（app-settings: を開くだけ）
       }
     });
 
-    ads.trackingStatus().then(paint);
+    card.hidden = false;         // 状態が返る前から見えている状態にする
+    // プラグインの登録が WebView より遅れることがあるので、取れないうちは数回取り直す。
+    var probes = 0;
+    function probe() {
+      ads.trackingStatus().then(function (status) {
+        paint(status);
+        if (status === "unsupported" && probes++ < 10) setTimeout(probe, 500);
+      });
+    }
+    probe();
     // 設定アプリで変更して戻ってきたときに表示を合わせる
     document.addEventListener("visibilitychange", function () {
       if (!document.hidden) ads.trackingStatus().then(paint);
