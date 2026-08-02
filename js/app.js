@@ -2514,6 +2514,21 @@
           return;
         }
 
+        // プロフィール画像は必須。相手に出る丸アイコンは実画像のみで、
+        // 無いとプレースホルダのまま交換相手を選べない。編集時は既存画像が pendingImage に入る。
+        var imgErr = document.getElementById("pf-image-err");
+        if (!pendingImage) {
+          if (imgErr) {
+            imgErr.textContent = t("プロフィール画像を選んでください。");
+            imgErr.hidden = false;
+          }
+          var imgField = document.querySelector('label[for="pf-image"]');
+          if (imgField && imgField.scrollIntoView) imgField.scrollIntoView({ block: "center" });
+          setFocus(document.getElementById("pf-image"));
+          return;
+        }
+        if (imgErr) imgErr.hidden = true;
+
         var age = document.getElementById("pf-age");
         var ageErr = document.getElementById("pf-age-err");
         if (age && !age.checked) {
