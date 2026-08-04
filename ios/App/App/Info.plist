@@ -56,8 +56,11 @@
 	<string>プロフィール画像やログ動画を、端末に保存済みの写真・動画から選ぶために写真ライブラリを使用します。撮影はしません。</string>
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-2783540275927131~8817671745</string>
-	<key>NSUserTrackingUsageDescription</key>
-	<string>広告の表示・最適化・効果測定のために、この端末の広告識別子（IDFA）を使用します。許可しない場合も、アプリはこれまでどおりご利用いただけます。</string>
+	<!--
+	  NSUserTrackingUsageDescription は意図的に持たない（2026-08-04）。
+	  iOS では ATT を要求せず IDFA も使わない＝非パーソナライズ広告のみ。
+	  SKAdNetwork はプライバシー保護型のインストール計測で ATT 不要のため残す。
+	-->
 	<key>SKAdNetworkItems</key>
 	<array>
 		<dict><key>SKAdNetworkIdentifier</key><string>cstr6suwn9.skadnetwork</string></dict>

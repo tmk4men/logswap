@@ -728,20 +728,6 @@ a { color: inherit; text-decoration: none; }
 .view-profile .btn-ghost { width: 100%; margin-top: 18px; }
 #view-profile .btn-ghost { width: 100%; margin-top: 18px; }
 
-/* 広告のトラッキング設定（iOS の ATT。プロフィール下部） */
-.track-card {
-  margin-top: 18px; padding: 14px 16px 16px;
-  border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--paper-2);
-}
-.track-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.track-title { margin: 0; font-size: 14px; font-weight: 700; color: var(--ink); }
-.track-state {
-  flex: none; font-size: 12px; font-weight: 700; color: var(--ink-2);
-  border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; white-space: nowrap;
-}
-.track-note { margin: 8px 0 0; font-size: 12.5px; line-height: 1.7; color: var(--muted); }
-#view-profile .track-card .btn-ghost { width: 100%; margin-top: 12px; }
-
 /* アカウント削除（控えめな危険操作リンク＋確認ダイアログ内の実行ボタン） */
 .btn-danger-link {
   display: block; width: 100%; margin-top: 14px;

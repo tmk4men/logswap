@@ -1,18 +1,10 @@
 import UIKit
 import Capacitor
-#if canImport(AppTrackingTransparency)
-import AppTrackingTransparency
-#endif
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
     var window: UIWindow?
-
-    /// ATT の要求が進行中かどうか（多重に呼ばないためのガード）。
-    private var trackingRequestInFlight = false
-    /// ATT の要求を試した回数。ダイアログが出せずに終わったときだけ増える。
-    private var trackingRequestAttempts = 0
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
@@ -36,51 +28,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func applicationDidBecomeActive(_ application: UIApplication) {
         // Restart any tasks that were paused (or not yet started) while the application was inactive. If the application was previously in the background, optionally refresh the user interface.
 
-        // App Tracking Transparency（App Store 審査 5.1.2(i)）。
-        // 以前は WebView 側（js/ads.js）から AdMob プラグイン経由で呼んでいたが、
-        // WebView の読み込み状況やプラグインの登録状況に左右されるため、ネイティブで
-        // 起動直後に出す。ここが自動表示の起点。
-        // 手動の導線はプロフィール画面の「広告のトラッキング設定」にもある
-        // （回答済み・端末側でトラッキング要求が禁止されていると自動では何も出ないため）。
-        requestTrackingAuthorizationIfNeeded()
-    }
-
-    /// 未回答のときだけ ATT の許諾ダイアログを表示する。
-    ///
-    /// iOS はアプリが active でない間に要求するとダイアログを出さずに完了してしまう。
-    /// さらに、active でも起動直後のウインドウ生成前だと「呼んだのに出ない」ことがあり、
-    /// そのとき完了ハンドラには .notDetermined のまま返ってくる（＝出せなかった合図）。
-    /// なので出せなかったら諦めずに数回やり直す。
-    private func requestTrackingAuthorizationIfNeeded() {
-        #if canImport(AppTrackingTransparency)
-        if #available(iOS 14, *) {
-            if trackingRequestInFlight { return }
-            // 回答済み（許可/拒否/制限）なら OS がもうダイアログを出さないので何もしない。
-            if ATTrackingManager.trackingAuthorizationStatus != .notDetermined { return }
-            if trackingRequestAttempts >= 5 { return }
-            trackingRequestInFlight = true
-            trackingRequestAttempts += 1
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-                guard UIApplication.shared.applicationState == .active else {
-                    // まだ active でない＝出しても無視される。次の active でやり直す。
-                    self?.trackingRequestInFlight = false
-                    self?.trackingRequestAttempts -= 1
-                    return
-                }
-                ATTrackingManager.requestTrackingAuthorization { status in
-                    DispatchQueue.main.async {
-                        self?.trackingRequestInFlight = false
-                        // 未回答のまま返った＝ダイアログを出せていない。少し待って再挑戦。
-                        if status == .notDetermined {
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                                self?.requestTrackingAuthorizationIfNeeded()
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        #endif
+        // App Tracking Transparency は使わない（2026-08-04）。
+        // iOS では IDFA を一切要求せず、広告は非パーソナライズのみで配信する。
+        // ATT を要求しない＝トラッキングしないので、App Store の
+        // 「トラッキングに使用」申告も全てオフにすること（審査 5.1.2(i) の再発防止）。
     }
 
     func applicationWillTerminate(_ application: UIApplication) {

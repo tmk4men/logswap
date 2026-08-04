@@ -2079,77 +2079,6 @@
     openOverlay(document.getElementById("logViewer"));
   }
 
-  // ---------- 広告のトラッキング設定（iOS の ATT）の結線 ----------
-  //
-  // 初回起動時のダイアログはネイティブ（AppDelegate.swift）が出す。ただし
-  // 「一度回答すると OS が二度と出さない」「端末側でトラッキング要求が禁止されていると
-  // 一度も出ない」ため、アプリ内に状態表示と手動導線を常設する。App Review にはここを案内する。
-  function bindTrackingSetting() {
-    var card = document.getElementById("trackCard");
-    var btn = document.getElementById("trackBtn");
-    var stateEl = document.getElementById("trackState");
-    var noteEl = document.getElementById("trackNote");
-    var ads = window.LogSwapAds;
-    if (!card || !btn || !stateEl || !noteEl || !ads || !ads.trackingStatus) return;
-    if (!ads.isIOS || !ads.isIOS()) return; // iOS 以外は ATT が無いので出さない
-
-    var LABEL = {
-      authorized: "許可",
-      denied: "許可しない",
-      restricted: "端末で制限中",
-      notDetermined: "未設定",
-      unsupported: "確認できません"
-    };
-    var NOTE = {
-      unsupported:
-        "この端末では現在の状態を取得できませんでした。iOS の「設定 > プライバシーとセキュリティ > トラッキング」から、このアプリのトラッキング設定を確認・変更できます。",
-      authorized:
-        "この端末の広告識別子（IDFA）を広告の最適化に使うことを許可しています。iOS の「設定 > プライバシーとセキュリティ > トラッキング」からいつでも変更できます。",
-      denied:
-        "広告識別子は広告に使われず、パーソナライズされていない広告が表示されます。iOS の「設定 > プライバシーとセキュリティ > トラッキング」からいつでも変更できます。",
-      restricted:
-        "iOS の「設定 > プライバシーとセキュリティ > トラッキング」で「Appからのトラッキング要求を許可」がオフになっているため、許可を確認できません。オンにすると設定できます。",
-      notDetermined:
-        "広告の最適化のために広告識別子（IDFA）を使ってよいかを確認します。下のボタンを押すと確認のダイアログが表示されます。許可しない場合も、アプリはこれまでどおり使えます。"
-    };
-
-    function paint(status) {
-      // iOS では絶対に隠さない。AdMob プラグインが未登録で状態を取れない場合でも
-      // カードごと消えると、審査メモで案内した導線が存在しないことになる（＝ 5.1.2(i) の再発）。
-      card.hidden = false;
-      var t = window.I18N ? function (s) { return window.I18N.t(s); } : function (s) { return s; };
-      stateEl.textContent = t(LABEL[status] || "未設定");
-      noteEl.textContent = t(NOTE[status] || NOTE.notDetermined);
-      btn.textContent = t(
-        status === "notDetermined" ? "トラッキングの許可を確認する" : "iOS の設定を開く"
-      );
-      btn.dataset.attStatus = status;
-    }
-
-    btn.addEventListener("click", function () {
-      if (btn.dataset.attStatus === "notDetermined") {
-        ads.requestTracking().then(paint);
-      } else {
-        ads.openIOSSettings();   // プラグイン不要（app-settings: を開くだけ）
-      }
-    });
-
-    card.hidden = false;         // 状態が返る前から見えている状態にする
-    // プラグインの登録が WebView より遅れることがあるので、取れないうちは数回取り直す。
-    var probes = 0;
-    function probe() {
-      ads.trackingStatus().then(function (status) {
-        paint(status);
-        if (status === "unsupported" && probes++ < 10) setTimeout(probe, 500);
-      });
-    }
-    probe();
-    // 設定アプリで変更して戻ってきたときに表示を合わせる
-    document.addEventListener("visibilitychange", function () {
-      if (!document.hidden) ads.trackingStatus().then(paint);
-    });
-  }
-
   // ---------- 通報・ブロックの結線 ----------
   function bindModeration() {
     var reportBtn = document.getElementById("reportUserBtn");
@@ -2711,9 +2640,6 @@
         window.I18N.setLang(window.I18N.lang === "ja" ? "en" : "ja");
       });
     }
-
-    // 広告のトラッキング設定（iOS の ATT）
-    bindTrackingSetting();
 
     // アカウント削除（確認ダイアログを挟む）
     var delBtn = document.getElementById("deleteAccountBtn");

@@ -31,6 +31,18 @@
     try { return window.Capacitor && window.Capacitor.getPlatform && window.Capacitor.getPlatform() === "ios"; }
     catch (e) { return false; }
   }
+
+  // 非パーソナライズ広告を強制するか（iOS のみ true）。
+  //
+  // iOS では App Tracking Transparency を一切要求しない方針にしたため（2026-08-04）、
+  // IDFA は利用できない。その上で広告リクエストにも npa を明示して二重に担保する。
+  // Android は GAID があり Apple の規約対象外なので、これまで通りパーソナライズ配信。
+  //
+  // 注意：@capacitor-community/admob（バナー/リワード）は npa オプションを公式に
+  // 受け取るが、@brandonknudsen/admob-native-advanced の loadAd は npa が
+  // 公開APIに無く、渡しても無視される可能性が高い。iOS では IDFA が無いため実害は
+  // 小さいが、厳密にやるならプラグイン側で GADRequest に npa=1 を付ける必要がある。
+  function npa() { return isIOS(); }
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
@@ -47,7 +59,7 @@
     var unit = (CONFIG.ADMOB && CONFIG.ADMOB.rewarded) || "";
     // @capacitor-community/admob: prepareRewardVideoAd → showRewardVideoAd
     Promise.resolve()
-      .then(function () { return plugin.prepareRewardVideoAd({ adId: unit }); })
+      .then(function () { return plugin.prepareRewardVideoAd({ adId: unit, npa: npa() }); })
       .then(function () { return plugin.showRewardVideoAd(); })
       .then(function () { if (onReward) onReward(); })
       .catch(function () { if (onCancel) onCancel(); });
@@ -56,58 +68,24 @@
   var bannerCreated = false;
   function noop() {}
 
-  // iOS の ATT（App Tracking Transparency）許諾待ち。
-  //
-  // ダイアログを出すのは AppDelegate.swift（ネイティブ）。JS からプラグイン経由で
-  // 出す方式は、WebView の読み込みやプラグイン登録の失敗で「一度も出ない」事故に
-  // なる（審査 5.1.2(i) でこれを踏んだ）。ここでは回答が確定するまで待ってから
-  // AdMob を初期化する＝許可された場合に IDFA が確実に使われるようにする。
-  //
-  // 保険として、3秒待っても未回答のまま（＝ネイティブ側が出せていない）なら
-  // JS からも1回だけ要求する。許可/不許可どちらでも done() で先へ進む。
-  function waitForTracking(p, done) {
-    if (!isIOS() || !p || typeof p.trackingAuthorizationStatus !== "function") { done(); return; }
-    var tries = 0, asked = false, finished = false;
-    function finish() { if (!finished) { finished = true; done(); } }
-    function tick() {
-      Promise.resolve()
-        .then(function () { return p.trackingAuthorizationStatus(); })
-        .then(function (res) {
-          // 回答済み（authorized/denied/restricted）になったら初期化へ
-          if (res && res.status && res.status !== "notDetermined") { finish(); return; }
-          tries++;
-          if (tries === 6 && !asked && typeof p.requestTrackingAuthorization === "function") {
-            asked = true;                      // 3秒経っても未回答＝ネイティブが出せていない
-            Promise.resolve(p.requestTrackingAuthorization()).catch(noop);
-          }
-          if (tries > 24) { finish(); return; } // 12秒で諦めて非パーソナライズのまま進む
-          setTimeout(tick, 500);
-        })
-        .catch(function () { finish(); });
-    }
-    tick();
-  }
-
   // AdMob SDK 初期化（アプリ起動時に1回）。ネイティブ以外は no-op。
+  //
+  // 以前は iOS で ATT の回答を待ってから初期化していたが、トラッキングをやめたため
+  // 待つ理由が無くなった。起動直後にそのまま初期化する。
   function initAds() {
     var p = admob();
     var np = nativeAds();
-    function start() {
-      if (p) {
-        Promise.resolve()
-          .then(function () { return p.initialize({ initializeForTesting: false }); })
-          .catch(noop);
-      }
-      if (np && CONFIG.AD_NATIVE_ENABLED) {
-        var appId = (CONFIG.ADMOB && CONFIG.ADMOB.appId) || "";
-        Promise.resolve()
-          .then(function () { return np.initialize({ appId: appId }); })
-          .catch(noop);
-      }
+    if (p) {
+      Promise.resolve()
+        .then(function () { return p.initialize({ initializeForTesting: false }); })
+        .catch(noop);
     }
-    if (!isIOS()) { start(); return; }
-    // iOS は ATT の回答が出てから AdMob を初期化する（ダイアログ自体はネイティブが出す）。
-    waitForTracking(p, start);
+    if (np && CONFIG.AD_NATIVE_ENABLED) {
+      var appId = (CONFIG.ADMOB && CONFIG.ADMOB.appId) || "";
+      Promise.resolve()
+        .then(function () { return np.initialize({ appId: appId }); })
+        .catch(noop);
+    }
   }
 
   // ログ画面用バナーを表示。ネイティブ実バナーを出せたら true（＝自社バナーは不要）、
@@ -123,7 +101,8 @@
       adSize: "ADAPTIVE_BANNER",     // 端末幅に自動フィット
       position: "BOTTOM_CENTER",     // 画面下端に固定オーバーレイ
       margin: CONFIG.AD_BANNER_MARGIN || 0, // タブバーの上に浮かせる
-      isTesting: false
+      isTesting: false,
+      npa: npa()                     // iOS は非パーソナライズ固定
     }).catch(noop);
     bannerCreated = true;
     return true;
@@ -197,7 +176,7 @@
     if (!np || !CONFIG.AD_NATIVE_ENABLED || !slotEl) return false;
     var unit = (CONFIG.ADMOB && CONFIG.ADMOB.native) || "";
     if (!unit) return false;
-    np.loadAd({ adUnitId: unit }).then(function (ad) {
+    np.loadAd({ adUnitId: unit, npa: npa() }).then(function (ad) {
       if (!ad || !slotEl.isConnected) return;
       if (isIOS()) {
         mountIosOverlay(slotEl, ad);   // impression/click は iOS 側で自動計測
@@ -212,48 +191,12 @@
     return true; // 読み込みを開始（非同期。失敗時は自社プロモが残る）
   }
 
-  // --- ATT（プロフィール画面の「広告のトラッキング設定」から使う） ---------
-  //
-  // ダイアログの主起点はネイティブ（AppDelegate）だが、
-  //  ・審査端末に前バージョンが残っていて回答済みになっている
-  //  ・端末の「Appからのトラッキング要求を許可」が OFF
-  // のどちらでも「起動しても何も出ない」状態になり、審査で ATT 未実装と見なされる。
-  // そこで、いつでも到達できる手動の導線をアプリ内に用意して状態も見せる。
-
-  // "authorized" / "denied" / "restricted" / "notDetermined" / "unsupported"
-  function trackingStatus() {
-    var p = admob();
-    if (!isIOS() || !p || typeof p.trackingAuthorizationStatus !== "function") {
-      return Promise.resolve("unsupported");
-    }
-    return Promise.resolve()
-      .then(function () { return p.trackingAuthorizationStatus(); })
-      .then(function (res) { return (res && res.status) || "unsupported"; })
-      .catch(function () { return "unsupported"; });
-  }
-
-  // 未回答なら OS のダイアログを出す。回答後の状態を返す。
-  function requestTracking() {
-    var p = admob();
-    if (!isIOS() || !p || typeof p.requestTrackingAuthorization !== "function") {
-      return Promise.resolve("unsupported");
-    }
-    return Promise.resolve()
-      .then(function () { return p.requestTrackingAuthorization(); })
-      .then(function () { return trackingStatus(); })
-      .catch(function () { return trackingStatus(); });
-  }
-
-  // iOS の「設定」アプリを開く。Capacitor は http(s) 以外のスキームを
-  // UIApplication.open に流すので app-settings: が通る。失敗しても実害なし。
-  function openIOSSettings() {
-    try { window.location.href = "app-settings:"; } catch (e) { /* 案内文だけ残す */ }
-  }
+  // ATT（App Tracking Transparency）関連の API はここに置いていたが、
+  // トラッキングをやめたので丸ごと削除した（2026-08-04）。
+  // iOS では IDFA を要求も取得もしない。再導入するなら AdMob プラグイン経由ではなく
+  // 自前のネイティブプラグインで実装すること（プラグイン未登録で無言に失敗するため）。
 
   window.LogSwapAds = {
-    trackingStatus: trackingStatus,
-    requestTracking: requestTracking,
-    openIOSSettings: openIOSSettings,
     isIOS: isIOS,
     showRewarded: showRewarded,
     fillSwipeSlot: fillSwipeSlot,
